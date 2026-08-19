@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
+    <div>
+        <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Executive overview</p>
+        <h2 class="mb-1">Compliance Dashboard</h2>
+        <p class="text-muted mb-0">A quick read on program health, risk posture, and control coverage across the ISMS.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="/overview" class="btn btn-secondary">Overview</a>
+        <a href="/reports" class="btn btn-primary">Reports</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card dashboard-stat success p-3">
+            <h5>Controls Implemented</h5>
+            <h2>{{ control_implementation_pct }}%</h2>
+            <small class="text-muted">Control coverage rate</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card dashboard-stat warning p-3">
+            <h5>Open Findings</h5>
+            <h2>{{ open_findings_count }}</h2>
+            <small class="text-muted">Needs attention this cycle</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card dashboard-stat danger p-3">
+            <h5>Overdue Actions</h5>
+            <h2>{{ overdue_actions_count }}</h2>
+            <small class="text-muted">Past due remedial work</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card dashboard-stat danger p-3">
+            <h5>High/Critical Risks</h5>
+            <h2>{{ high_risk_count }}</h2>
+            <small class="text-muted">Priority exposure items</small>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="chart-card">
+            <h5 class="mb-3">Findings by Severity</h5>
+            <canvas id="severityChart"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-card">
+            <h5 class="mb-3">Control Implementation</h5>
+            <canvas id="controlChart"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-card">
+            <h5 class="mb-3">Risk Distribution</h5>
+            <canvas id="riskChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <div class="col-lg-6">
+        <div class="info-card">
+            <h5 class="mb-3">What this means</h5>
+            <p class="mb-2">The program is trending in a healthy direction, but the current risk and remediation workload still requires focus on high-severity issues and overdue corrective actions.</p>
+            <p class="mb-0">The highest-value next actions are to reduce overdue remediation work, improve control coverage, and close the most impactful audit findings.</p>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="info-card">
+            <h5 class="mb-3">Suggested next actions</h5>
+            <ul class="mb-0 ps-3">
+                <li>Prioritize the top-risk remediation plan.</li>
+                <li>Review overdue corrective actions by owner and due date.</li>
+                <li>Close or escalate the highest-severity findings.</li>
+                <li>Track control implementation metrics monthly.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+const severityCtx = document.getElementById('severityChart');
+new Chart(severityCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Critical', 'High', 'Medium', 'Low'],
+        datasets: [{
+            data: [{{ severity_counts.Critical }}, {{ severity_counts.High }}, {{ severity_counts.Medium }}, {{ severity_counts.Low }}],
+            backgroundColor: ['#1b1b1b', '#e63946', '#f4a261', '#adb5bd']
+        }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+});
+
+const controlCtx = document.getElementById('controlChart');
+new Chart(controlCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Implemented', 'Partially', 'Not Implemented'],
+        datasets: [{
+            label: 'Controls',
+            data: [
+                {{ control_status_counts['Implemented'] }},
+                {{ control_status_counts['Partially Implemented'] }},
+                {{ control_status_counts['Not Implemented'] }}
+            ],
+            backgroundColor: ['#2a9d8f', '#f4a261', '#e63946']
+        }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+});
+
+const riskCtx = document.getElementById('riskChart');
+new Chart(riskCtx, {
+    type: 'pie',
+    data: {
+        labels: [{% for label in risk_buckets.keys() %}'{{ label }}',{% endfor %}],
+        datasets: [{
+            data: [{% for count in risk_buckets.values() %}{{ count }},{% endfor %}],
+            backgroundColor: ['#2a9d8f', '#f4a261', '#e63946']
+        }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Policies - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>Security Policies</h2>
+
+<div style="margin-bottom: 2rem;">
+    <a href="/policies/new" style="background-color: #9b59b6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block;">
+        + New Policy
+    </a>
+</div>
+
+{% if policies %}
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background-color: #ecf0f1; border-bottom: 2px solid #bdc3c7;">
+            <th style="padding: 1rem; text-align: left;">Title</th>
+            <th style="padding: 1rem; text-align: center;">Version</th>
+            <th style="padding: 1rem; text-align: left;">Owner</th>
+            <th style="padding: 1rem; text-align: center;">Status</th>
+            <th style="padding: 1rem; text-align: center;">Review Date</th>
+            <th style="padding: 1rem; text-align: center;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for policy in policies %}
+        <tr style="border-bottom: 1px solid #ecf0f1; {% if loop.index % 2 == 0 %}background-color: #f9f9f9;{% endif %}">
+            <td style="padding: 1rem;">
+                <strong>{{ policy.title }}</strong>
+                {% if policy.content_summary %}
+                <br>
+                <span style="color: #7f8c8d; font-size: 0.9rem;">{{ policy.content_summary[:50] }}{% if policy.content_summary|length > 50 %}...{% endif %}</span>
+                {% endif %}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <span style="background-color: #95a5a6; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.9rem;">
+                    v{{ policy.version }}
+                </span>
+            </td>
+            <td style="padding: 1rem;">{{ policy.owner or 'Unassigned' }}</td>
+            <td style="padding: 1rem; text-align: center;">
+                <span style="background-color: {% if policy.status == 'Draft' %}#95a5a6{% elif policy.status == 'Approved' %}#27ae60{% elif policy.status == 'Under Review' %}#f39c12{% else %}#c0392b{% endif %}; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.9rem;">
+                    {{ policy.status or 'Draft' }}
+                </span>
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                {% if policy.review_date %}
+                <span style="color: {% if policy.review_date < now %}#e74c3c{% else %}#27ae60{% endif %};">
+                    {{ policy.review_date.strftime('%Y-%m-%d') }}
+                </span>
+                {% else %}
+                <span style="color: #95a5a6;">—</span>
+                {% endif %}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <a href="/policies/{{ policy.id }}" style="color: #3498db; text-decoration: none; margin-right: 1rem;">View</a>
+                <a href="/policies/{{ policy.id }}/edit" style="color: #f39c12; text-decoration: none; margin-right: 1rem;">Edit</a>
+                <a href="/policies/{{ policy.id }}/delete" style="color: #e74c3c; text-decoration: none;" onclick="return confirm('Are you sure?');">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="background-color: #ecf0f1; padding: 2rem; border-radius: 4px; text-align: center;">
+    <p style="color: #7f8c8d; font-size: 1.1rem;">No policies found.</p>
+    <a href="/policies/new" style="color: #9b59b6; text-decoration: none;">Create the first policy</a>
+</div>
+{% endif %}
+{% endblock %}

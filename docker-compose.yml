@@ -1,0 +1,47 @@
+version: '3.9'
+
+services:
+  web:
+    build: .
+    container_name: mini-isms-web
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: sqlite:////app/instance/mini_isms.db
+      SECRET_KEY: change-me-in-production
+      PORT: 5000
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: StrongPass123!
+      ADMIN_NAME: System Administrator
+      TENANT_NAME: Default Tenant
+      TENANT_SLUG: default-tenant
+      STORAGE_BACKEND: s3
+      STORAGE_BUCKET: mini-isms-local
+      UPLOAD_FOLDER: /app/app/static/uploads
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+    volumes:
+      - .:/app
+      - ./instance:/app/instance
+    depends_on:
+      - minio
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: mini-isms-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+volumes:
+  minio_data:

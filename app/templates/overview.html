@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Overview - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="hero-panel mb-4">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-7">
+            <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Security operations, simplified</p>
+            <h1 class="display-6 fw-bold mb-3">Manage risk, controls, and evidence in one streamlined platform.</h1>
+            <p class="lead text-muted mb-4">Mini ISMS helps teams stay audit-ready, reduce exposure, and make faster decisions with a consistent view of security posture.</p>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="/dashboard" class="btn btn-primary btn-lg">Launch dashboard</a>
+                <a href="/reports" class="btn btn-secondary btn-lg">See reports</a>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="mini-feature-card">
+                <div class="mini-feature-header">
+                    <span class="mini-dot success"></span>
+                    <span>Program health</span>
+                </div>
+                <div class="mini-metric">94%</div>
+                <div class="mini-label">Policy and control alignment</div>
+                <div class="mini-progress">
+                    <span></span>
+                </div>
+                <div class="mini-meta-row">
+                    <span>Open findings: {{ total_findings }}</span>
+                    <span>Live</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mb-4">
+    <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Program snapshot</p>
+    <h2 class="mb-2">Information Security Overview</h2>
+    <p class="text-muted mb-0">A concise view of the governance, controls, and operational risk posture managed by this ISMS platform.</p>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="label">Assets</div>
+            <div class="value">{{ total_assets }}</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="label">Risks</div>
+            <div class="value">{{ total_risks }}</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="label">Controls</div>
+            <div class="value">{{ total_controls }}</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="label">Findings</div>
+            <div class="value">{{ total_findings }}</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="label">Evidence</div>
+            <div class="value">{{ total_evidence }}</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="label">Status</div>
+            <div class="value">Live</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="info-card h-100">
+            <h5 class="mb-3">Why this matters</h5>
+            <p>A mature ISMS helps organizations identify operational risk, align control implementation with policy, and ensure business resilience through measurable governance processes.</p>
+            <p class="mb-0">This project demonstrates the core building blocks of an information security program: asset inventory, risk evaluation, policy management, corrective action tracking, evidence handling, and audit readiness.</p>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="info-card h-100">
+            <h5 class="mb-3">Core capabilities</h5>
+            <ul class="mb-0 ps-3">
+                <li>Asset and inventory management</li>
+                <li>Risk identification and scoring</li>
+                <li>Policy and control tracking</li>
+                <li>Finding and corrective action management</li>
+                <li>Evidence upload and retention metadata</li>
+                <li>Operational reporting and audit trail</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4 d-flex gap-2 flex-wrap">
+    <a href="/dashboard" class="btn btn-primary">Open Dashboard</a>
+    <a href="/reports" class="btn btn-secondary">View Reports</a>
+    <a href="/audit-trail" class="btn btn-secondary">View Audit Trail</a>
+</div>
+{% endblock %}

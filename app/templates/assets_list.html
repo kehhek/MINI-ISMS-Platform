@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Assets - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>Assets</h2>
+
+<div style="margin-bottom: 2rem;">
+    <a href="/assets/new" style="background-color: #27ae60; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block;">
+        + New Asset
+    </a>
+</div>
+
+{% if assets %}
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background-color: #ecf0f1; border-bottom: 2px solid #bdc3c7;">
+            <th style="padding: 1rem; text-align: left;">Name</th>
+            <th style="padding: 1rem; text-align: left;">Type</th>
+            <th style="padding: 1rem; text-align: left;">Owner</th>
+            <th style="padding: 1rem; text-align: left;">Classification</th>
+            <th style="padding: 1rem; text-align: left;">Location</th>
+            <th style="padding: 1rem; text-align: center;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for asset in assets %}
+        <tr style="border-bottom: 1px solid #ecf0f1; {% if loop.index % 2 == 0 %}background-color: #f9f9f9;{% endif %}">
+            <td style="padding: 1rem;"><strong>{{ asset.name }}</strong></td>
+            <td style="padding: 1rem;">{{ asset.asset_type or 'N/A' }}</td>
+            <td style="padding: 1rem;">{{ asset.owner or 'Unassigned' }}</td>
+            <td style="padding: 1rem;">
+                <span style="background-color: #3498db; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.9rem;">
+                    {{ asset.classification or 'N/A' }}
+                </span>
+            </td>
+            <td style="padding: 1rem;">{{ asset.location or 'N/A' }}</td>
+            <td style="padding: 1rem; text-align: center;">
+                <a href="/assets/{{ asset.id }}" style="color: #3498db; text-decoration: none; margin-right: 1rem;">View</a>
+                <a href="/assets/{{ asset.id }}/edit" style="color: #f39c12; text-decoration: none; margin-right: 1rem;">Edit</a>
+                <a href="/assets/{{ asset.id }}/delete" style="color: #e74c3c; text-decoration: none;" onclick="return confirm('Are you sure?');">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="background-color: #ecf0f1; padding: 2rem; border-radius: 4px; text-align: center;">
+    <p style="color: #7f8c8d; font-size: 1.1rem;">No assets found.</p>
+    <a href="/assets/new" style="color: #3498db; text-decoration: none;">Create the first asset</a>
+</div>
+{% endif %}
+{% endblock %}

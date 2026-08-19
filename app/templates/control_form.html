@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}{% if control %}Edit Control{% else %}New Control{% endif %} - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>{% if control %}Edit Control: {{ control.name }}{% else %}Create New Control{% endif %}</h2>
+
+<form method="POST" style="max-width: 700px; margin-top: 2rem;">
+    <div style="margin-bottom: 1.5rem;">
+        <label for="name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Control Name *</label>
+        <input 
+            type="text" 
+            id="name" 
+            name="name" 
+            value="{{ control.name if control else '' }}" 
+            required
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="control_id" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Control ID (e.g., A.5.1)</label>
+        <input 
+            type="text" 
+            id="control_id" 
+            name="control_id" 
+            value="{{ control.control_id if control else '' }}"
+            placeholder="ISO 27001 Annex A identifier or custom ID"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem; font-family: monospace;"
+        >
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <label for="control_type" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Control Type</label>
+            <select 
+                id="control_type" 
+                name="control_type"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+                <option value="">Select a type</option>
+                <option value="Preventive" {% if control and control.control_type == 'Preventive' %}selected{% endif %}>Preventive</option>
+                <option value="Detective" {% if control and control.control_type == 'Detective' %}selected{% endif %}>Detective</option>
+                <option value="Corrective" {% if control and control.control_type == 'Corrective' %}selected{% endif %}>Corrective</option>
+            </select>
+        </div>
+        <div>
+            <label for="implementation_status" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Implementation Status</label>
+            <select 
+                id="implementation_status" 
+                name="implementation_status"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+                <option value="Not Implemented" {% if control and control.implementation_status == 'Not Implemented' %}selected{% endif %}>Not Implemented</option>
+                <option value="Partially Implemented" {% if control and control.implementation_status == 'Partially Implemented' %}selected{% endif %}>Partially Implemented</option>
+                <option value="Implemented" {% if control and control.implementation_status == 'Implemented' %}selected{% endif %}>Implemented</option>
+            </select>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="description" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Description</label>
+        <textarea 
+            id="description" 
+            name="description"
+            rows="4"
+            placeholder="Describe what this control does and how it mitigates risks..."
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem; font-family: inherit;"
+        >{{ control.description if control else '' }}</textarea>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <label for="risk_id" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Related Risk</label>
+            <select 
+                id="risk_id" 
+                name="risk_id"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+                <option value="">No specific risk</option>
+                {% for risk in risks %}
+                <option value="{{ risk.id }}" {% if control and control.risk_id == risk.id %}selected{% endif %}>
+                    {{ risk.title }} ({{ risk.risk_score or 'N/A' }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="policy_id" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Related Policy</label>
+            <select 
+                id="policy_id" 
+                name="policy_id"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+                <option value="">No specific policy</option>
+                {% for policy in policies %}
+                <option value="{{ policy.id }}" {% if control and control.policy_id == policy.id %}selected{% endif %}>
+                    {{ policy.title }} (v{{ policy.version }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <button 
+            type="submit" 
+            style="background-color: #1abc9c; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: bold;"
+        >
+            {% if control %}Update Control{% else %}Create Control{% endif %}
+        </button>
+        <a 
+            href="/controls" 
+            style="background-color: #95a5a6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block; font-weight: bold;"
+        >
+            Cancel
+        </a>
+    </div>
+</form>
+{% endblock %}

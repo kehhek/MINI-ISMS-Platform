@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}{% if asset %}Edit Asset{% else %}New Asset{% endif %} - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>{% if asset %}Edit Asset: {{ asset.name }}{% else %}Create New Asset{% endif %}</h2>
+
+<form method="POST" style="max-width: 600px; margin-top: 2rem;">
+    <div style="margin-bottom: 1.5rem;">
+        <label for="name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Asset Name *</label>
+        <input 
+            type="text" 
+            id="name" 
+            name="name" 
+            value="{{ asset.name if asset else '' }}" 
+            required
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="asset_type" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Asset Type</label>
+        <select 
+            id="asset_type" 
+            name="asset_type"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+            <option value="">Select a type</option>
+            <option value="Hardware" {% if asset and asset.asset_type == 'Hardware' %}selected{% endif %}>Hardware</option>
+            <option value="Software" {% if asset and asset.asset_type == 'Software' %}selected{% endif %}>Software</option>
+            <option value="Data" {% if asset and asset.asset_type == 'Data' %}selected{% endif %}>Data</option>
+            <option value="People" {% if asset and asset.asset_type == 'People' %}selected{% endif %}>People</option>
+            <option value="Process" {% if asset and asset.asset_type == 'Process' %}selected{% endif %}>Process</option>
+            <option value="Other" {% if asset and asset.asset_type == 'Other' %}selected{% endif %}>Other</option>
+        </select>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="owner" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Owner</label>
+        <input 
+            type="text" 
+            id="owner" 
+            name="owner" 
+            value="{{ asset.owner if asset else '' }}"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="classification" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Classification</label>
+        <select 
+            id="classification" 
+            name="classification"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+            <option value="">Select a classification</option>
+            <option value="Public" {% if asset and asset.classification == 'Public' %}selected{% endif %}>Public</option>
+            <option value="Internal" {% if asset and asset.classification == 'Internal' %}selected{% endif %}>Internal</option>
+            <option value="Confidential" {% if asset and asset.classification == 'Confidential' %}selected{% endif %}>Confidential</option>
+            <option value="Restricted" {% if asset and asset.classification == 'Restricted' %}selected{% endif %}>Restricted</option>
+        </select>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="location" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Location</label>
+        <input 
+            type="text" 
+            id="location" 
+            name="location" 
+            value="{{ asset.location if asset else '' }}"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="description" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Description</label>
+        <textarea 
+            id="description" 
+            name="description"
+            rows="5"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem; font-family: inherit;"
+        >{{ asset.description if asset else '' }}</textarea>
+    </div>
+
+    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <button 
+            type="submit" 
+            style="background-color: #27ae60; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: bold;"
+        >
+            {% if asset %}Update Asset{% else %}Create Asset{% endif %}
+        </button>
+        <a 
+            href="/assets" 
+            style="background-color: #95a5a6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block; font-weight: bold;"
+        >
+            Cancel
+        </a>
+    </div>
+</form>
+
+{% if asset %}
+<div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #ecf0f1;">
+    <p style="color: #7f8c8d; font-size: 0.9rem;">
+        Created: {{ asset.created_at.strftime('%Y-%m-%d %H:%M:%S') if asset.created_at else 'N/A' }}
+    </p>
+</div>
+{% endif %}
+{% endblock %}

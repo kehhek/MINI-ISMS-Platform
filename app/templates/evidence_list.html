@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Evidence - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>Evidence & Documentation</h2>
+    <a href="/evidence/new" style="background-color: #27ae60; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">
+        + Upload Evidence
+    </a>
+</div>
+
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
+        {% for message in messages %}
+        <div style="background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% if evidence %}
+<table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 4px; overflow: hidden;">
+    <thead>
+        <tr style="background-color: #ecf0f1; border-bottom: 2px solid #bdc3c7;">
+            <th style="padding: 1rem; text-align: left;">Title</th>
+            <th style="padding: 1rem; text-align: center;">Filename</th>
+            <th style="padding: 1rem; text-align: center;">Related To</th>
+            <th style="padding: 1rem; text-align: center;">Uploaded By</th>
+            <th style="padding: 1rem; text-align: center;">Date</th>
+            <th style="padding: 1rem; text-align: center;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in evidence %}
+        <tr style="border-bottom: 1px solid #ecf0f1;">
+            <td style="padding: 1rem;">
+                <a href="/evidence/{{ item.id }}" style="color: #3498db; text-decoration: none; font-weight: bold;">
+                    {{ item.title }}
+                </a>
+            </td>
+            <td style="padding: 1rem; text-align: center; font-size: 0.9rem; color: #7f8c8d;">
+                {{ item.filename or '—' }}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                {% if item.control %}
+                    <a href="/controls/{{ item.control.id }}" style="background-color: #3498db; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; text-decoration: none; font-size: 0.85rem;">
+                        Control: {{ item.control.control_id }}
+                    </a>
+                {% elif item.finding %}
+                    <a href="/findings/{{ item.finding.id }}" style="background-color: #e67e22; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; text-decoration: none; font-size: 0.85rem;">
+                        Finding: {{ item.finding.title }}
+                    </a>
+                {% else %}
+                    <span style="color: #95a5a6; font-size: 0.85rem;">Standalone</span>
+                {% endif %}
+            </td>
+            <td style="padding: 1rem; text-align: center; font-size: 0.9rem;">
+                {{ item.uploaded_by or 'Unknown' }}
+            </td>
+            <td style="padding: 1rem; text-align: center; font-size: 0.9rem; color: #7f8c8d;">
+                {{ item.uploaded_date.strftime('%Y-%m-%d %H:%M') if item.uploaded_date else 'N/A' }}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <a href="/evidence/{{ item.id }}" style="color: #3498db; text-decoration: none; margin-right: 0.5rem; font-size: 0.9rem;">View</a>
+                <a href="/evidence/{{ item.id }}/edit" style="color: #f39c12; text-decoration: none; margin-right: 0.5rem; font-size: 0.9rem;">Edit</a>
+                <a href="/evidence/{{ item.id }}/delete" style="color: #e74c3c; text-decoration: none; font-size: 0.9rem;" onclick="return confirm('Are you sure?');">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="background-color: #f9f9f9; padding: 3rem; text-align: center; border-radius: 4px; border: 1px solid #ecf0f1;">
+    <p style="color: #7f8c8d; font-size: 1.1rem; margin-bottom: 1rem;">No evidence uploaded yet.</p>
+    <a href="/evidence/new" style="background-color: #27ae60; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block;">
+        Upload the first evidence
+    </a>
+</div>
+{% endif %}
+{% endblock %}

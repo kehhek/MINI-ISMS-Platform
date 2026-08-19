@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Trail - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
+    <div>
+        <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Governance</p>
+        <h2 class="mb-1">Audit Trail</h2>
+        <p class="text-muted mb-0">A chronological record of changes and security actions across the platform.</p>
+    </div>
+    <a href="/reports/audit-log.csv" class="btn btn-primary">Download CSV</a>
+</div>
+
+{% if events %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Action</th>
+                <th>Entity</th>
+                <th>User</th>
+                <th>Before</th>
+                <th>After</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td>{{ event.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td><span class="badge badge-primary" style="background: #2563eb;">{{ event.action }}</span></td>
+                <td>{{ event.entity_type }}</td>
+                <td>{{ event.user.full_name if event.user else 'System' }}</td>
+                <td class="text-muted small">{{ event.before_value[:120] if event.before_value else '—' }}</td>
+                <td class="text-muted small">{{ event.after_value[:120] if event.after_value else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <h5 class="mb-2">No audit events yet</h5>
+    <p class="mb-0">Activity will appear here as users create and update records.</p>
+</div>
+{% endif %}
+{% endblock %}

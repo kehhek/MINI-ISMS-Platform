@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Controls - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>Security Controls</h2>
+
+<div style="margin-bottom: 2rem;">
+    <a href="/controls/new" style="background-color: #1abc9c; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block;">
+        + New Control
+    </a>
+</div>
+
+{% if controls %}
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background-color: #ecf0f1; border-bottom: 2px solid #bdc3c7;">
+            <th style="padding: 1rem; text-align: left;">Control ID</th>
+            <th style="padding: 1rem; text-align: left;">Name</th>
+            <th style="padding: 1rem; text-align: center;">Type</th>
+            <th style="padding: 1rem; text-align: center;">Status</th>
+            <th style="padding: 1rem; text-align: left;">Related To</th>
+            <th style="padding: 1rem; text-align: center;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for control in controls %}
+        <tr style="border-bottom: 1px solid #ecf0f1; {% if loop.index % 2 == 0 %}background-color: #f9f9f9;{% endif %}">
+            <td style="padding: 1rem;">
+                <span style="background-color: #34495e; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-family: monospace; font-weight: bold;">
+                    {{ control.control_id or 'N/A' }}
+                </span>
+            </td>
+            <td style="padding: 1rem;">
+                <strong>{{ control.name }}</strong>
+                {% if control.description %}
+                <br>
+                <span style="color: #7f8c8d; font-size: 0.9rem;">{{ control.description[:50] }}{% if control.description|length > 50 %}...{% endif %}</span>
+                {% endif %}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <span style="background-color: {% if control.control_type == 'Preventive' %}#3498db{% elif control.control_type == 'Detective' %}#f39c12{% else %}#e74c3c{% endif %}; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.9rem;">
+                    {{ control.control_type or 'N/A' }}
+                </span>
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <span style="background-color: {% if control.implementation_status == 'Implemented' %}#27ae60{% elif control.implementation_status == 'Partially Implemented' %}#f39c12{% else %}#95a5a6{% endif %}; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.9rem;">
+                    {{ control.implementation_status or 'Not Implemented' }}
+                </span>
+            </td>
+            <td style="padding: 1rem;">
+                {% if control.risk %}
+                <a href="/risks/{{ control.risk.id }}" style="color: #e74c3c; text-decoration: none;">Risk: {{ control.risk.title[:20] }}</a>
+                {% elif control.policy %}
+                <a href="/policies/{{ control.policy.id }}" style="color: #9b59b6; text-decoration: none;">Policy: {{ control.policy.title[:20] }}</a>
+                {% else %}
+                <span style="color: #95a5a6;">—</span>
+                {% endif %}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <a href="/controls/{{ control.id }}" style="color: #3498db; text-decoration: none; margin-right: 1rem;">View</a>
+                <a href="/controls/{{ control.id }}/edit" style="color: #f39c12; text-decoration: none; margin-right: 1rem;">Edit</a>
+                <a href="/controls/{{ control.id }}/delete" style="color: #e74c3c; text-decoration: none;" onclick="return confirm('Are you sure?');">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="background-color: #ecf0f1; padding: 2rem; border-radius: 4px; text-align: center;">
+    <p style="color: #7f8c8d; font-size: 1.1rem;">No controls found.</p>
+    <a href="/controls/new" style="color: #1abc9c; text-decoration: none;">Create the first control</a>
+</div>
+{% endif %}
+{% endblock %}

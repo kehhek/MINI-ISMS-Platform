@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{% if evidence %}Edit Evidence{% else %}Upload Evidence{% endif %} - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>{% if evidence %}Edit Evidence{% else %}Upload New Evidence{% endif %}</h2>
+
+<form method="POST" enctype="multipart/form-data" style="max-width: 800px; margin-top: 2rem;">
+    <div style="margin-bottom: 1.5rem;">
+        <label for="title" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Evidence Title *</label>
+        <input 
+            type="text" 
+            id="title" 
+            name="title" 
+            value="{{ evidence.title if evidence else '' }}"
+            required
+            placeholder="e.g. Firewall Hardening Screenshot"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <label for="uploaded_by" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Uploaded By</label>
+            <input 
+                type="text" 
+                id="uploaded_by" 
+                name="uploaded_by" 
+                value="{{ evidence.uploaded_by if evidence else '' }}"
+                placeholder="Name or team"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+        </div>
+        <div>
+            <label for="file" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Upload File</label>
+            <input 
+                type="file" 
+                id="file" 
+                name="file"
+                style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+            {% if evidence and evidence.filename %}
+            <small style="color: #7f8c8d; display: block; margin-top: 0.5rem;">Current file: {{ evidence.filename }}</small>
+            {% endif %}
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <label for="control_id" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Related Control</label>
+            <select 
+                id="control_id" 
+                name="control_id"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+                <option value="">No specific control</option>
+                {% for control in controls %}
+                <option value="{{ control.id }}" {% if evidence and evidence.control_id == control.id %}selected{% endif %}>
+                    {{ control.control_id }} - {{ control.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="finding_id" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Related Finding</label>
+            <select 
+                id="finding_id" 
+                name="finding_id"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+                <option value="">No specific finding</option>
+                {% for finding in findings %}
+                <option value="{{ finding.id }}" {% if evidence and evidence.finding_id == finding.id %}selected{% endif %}>
+                    {{ finding.title }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="description" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Description</label>
+        <textarea 
+            id="description" 
+            name="description"
+            rows="5"
+            placeholder="Describe what this evidence demonstrates or supports..."
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem; font-family: inherit;"
+        >{{ evidence.description if evidence else '' }}</textarea>
+    </div>
+
+    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <button 
+            type="submit" 
+            style="background-color: #27ae60; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1rem;"
+        >
+            {% if evidence %}Update Evidence{% else %}Upload Evidence{% endif %}
+        </button>
+        <a 
+            href="{% if evidence %}/evidence/{{ evidence.id }}{% else %}/evidence{% endif %}" 
+            style="background-color: #95a5a6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block; font-weight: bold;"
+        >
+            Cancel
+        </a>
+    </div>
+</form>
+{% endblock %}

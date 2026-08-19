@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Initial Setup - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <h2 class="mb-3">Initial Admin Setup</h2>
+                <p class="text-muted">Create your first tenant and admin account to start using Mini ISMS.</p>
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="tenant_name" class="form-label">Tenant Name</label>
+                        <input type="text" class="form-control" id="tenant_name" name="tenant_name" value="Default Tenant" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="tenant_slug" class="form-label">Tenant Slug</label>
+                        <input type="text" class="form-control" id="tenant_slug" name="tenant_slug" value="default-tenant" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="admin_name" class="form-label">Admin Name</label>
+                        <input type="text" class="form-control" id="admin_name" name="admin_name" value="System Administrator" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="admin_email" class="form-label">Admin Email</label>
+                        <input type="email" class="form-control" id="admin_email" name="admin_email" value="admin@example.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="admin_password" class="form-label">Admin Password</label>
+                        <input type="password" class="form-control" id="admin_password" name="admin_password" value="StrongPass123!" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Create Admin Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

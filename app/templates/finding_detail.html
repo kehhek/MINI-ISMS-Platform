@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Finding: {{ finding.title }} - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>{{ finding.title }}</h2>
+    <div style="display: flex; gap: 1rem;">
+        <a href="/findings/{{ finding.id }}/edit" style="background-color: #f39c12; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">
+            Edit
+        </a>
+        <a href="/findings" style="background-color: #95a5a6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">
+            Back to Findings
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <!-- Finding Details Card -->
+    <div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1.5rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">Finding Details</h3>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Severity</p>
+            <span style="background-color: {% if finding.severity == 'Critical' %}#c0392b{% elif finding.severity == 'High' %}#e74c3c{% elif finding.severity == 'Medium' %}#f39c12{% else %}#27ae60{% endif %}; color: white; padding: 0.5rem 1rem; border-radius: 3px; font-weight: bold;">
+                {{ finding.severity or 'Medium' }}
+            </span>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Status</p>
+            <span style="background-color: {% if finding.status == 'Open' %}#e74c3c{% elif finding.status == 'In Progress' %}#f39c12{% else %}#27ae60{% endif %}; color: white; padding: 0.5rem 1rem; border-radius: 3px; font-weight: bold;">
+                {{ finding.status or 'Open' }}
+            </span>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Audit Name</p>
+            <p style="font-size: 1rem;">{{ finding.audit_name or 'Not specified' }}</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Identified By</p>
+            <p style="font-size: 1rem;">{{ finding.identified_by or 'Unknown' }}</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Identification Date</p>
+            <p style="font-size: 1rem;">{{ finding.identified_date.strftime('%Y-%m-%d %H:%M:%S') if finding.identified_date else 'N/A' }}</p>
+        </div>
+
+        {% if finding.control %}
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Related Control</p>
+            <a href="/controls/{{ finding.control.id }}" style="color: #1abc9c; text-decoration: none; font-weight: bold;">
+                {{ finding.control.control_id }} - {{ finding.control.name }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Description Card -->
+    <div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">Description</h3>
+        <p style="color: #555; line-height: 1.6; white-space: pre-wrap;">
+            {% if finding.description %}
+                {{ finding.description }}
+            {% else %}
+                <span style="color: #95a5a6; font-style: italic;">No description provided.</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<!-- Corrective Actions Section -->
+<div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">
+        <h3 style="color: #2c3e50; margin: 0;">Corrective Actions</h3>
+        <a href="/findings/{{ finding.id }}/corrective-actions/new" style="background-color: #27ae60; color: white; padding: 0.5rem 1rem; border-radius: 3px; text-decoration: none; font-size: 0.9rem; font-weight: bold;">
+            + Add Action
+        </a>
+    </div>
+
+    {% if finding.corrective_actions %}
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background-color: #ecf0f1; border-bottom: 1px solid #bdc3c7;">
+                <th style="padding: 0.75rem; text-align: left;">Description</th>
+                <th style="padding: 0.75rem; text-align: center;">Owner</th>
+                <th style="padding: 0.75rem; text-align: center;">Status</th>
+                <th style="padding: 0.75rem; text-align: center;">Due Date</th>
+                <th style="padding: 0.75rem; text-align: center;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for action in finding.corrective_actions %}
+            <tr style="border-bottom: 1px solid #ecf0f1;">
+                <td style="padding: 0.75rem;">
+                    {{ action.description[:60] }}{% if action.description|length > 60 %}...{% endif %}
+                </td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    {{ action.owner or 'Unassigned' }}
+                </td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    <span style="background-color: {% if action.status == 'Not Started' %}#95a5a6{% elif action.status == 'In Progress' %}#f39c12{% elif action.status == 'Completed' %}#27ae60{% else %}#3498db{% endif %}; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.85rem;">
+                        {{ action.status }}
+                    </span>
+                </td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    {% if action.due_date %}
+                    <span style="color: {% if action.due_date < now %}#e74c3c{% else %}#555{% endif %};">
+                        {{ action.due_date.strftime('%Y-%m-%d') }}
+                    </span>
+                    {% else %}
+                    <span style="color: #95a5a6;">—</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    <a href="/corrective-actions/{{ action.id }}/edit" style="color: #f39c12; text-decoration: none; margin-right: 0.5rem; font-size: 0.9rem;">Edit</a>
+                    <a href="/corrective-actions/{{ action.id }}/delete" style="color: #e74c3c; text-decoration: none; font-size: 0.9rem;" onclick="return confirm('Are you sure?');">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="background-color: #f9f9f9; padding: 1.5rem; border-radius: 3px; text-align: center; color: #7f8c8d;">
+        <p>No corrective actions assigned yet.</p>
+        <a href="/findings/{{ finding.id }}/corrective-actions/new" style="color: #27ae60; text-decoration: none;">Create the first corrective action</a>
+    </div>
+    {% endif %}
+</div>
+
+<div style="margin-top: 2rem; text-align: center;">
+    <a href="/findings/{{ finding.id }}/delete" style="background-color: #c0392b; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;" onclick="return confirm('Are you sure? This will delete the finding and all corrective actions.');">
+        Delete Finding
+    </a>
+</div>
+{% endblock %}

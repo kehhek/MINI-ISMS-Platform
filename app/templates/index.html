@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 2rem 0;">
+    <h1 style="color: #2c3e50; margin-bottom: 1rem;">Welcome to Mini ISMS Platform</h1>
+    <p style="color: #7f8c8d; font-size: 1.1rem; margin-bottom: 2rem;">
+        A lightweight Information Security Management System for managing assets and risks.
+    </p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 3rem;">
+    <!-- Assets Card -->
+    <div style="background-color: white; border-left: 4px solid #3498db; padding: 2rem; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1rem;">📊 Assets</h3>
+        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">
+            Manage and categorize all your IT assets including hardware, software, data, and personnel.
+        </p>
+        <a href="/assets" style="background-color: #3498db; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block;">
+            View Assets
+        </a>
+    </div>
+
+    <!-- Risks Card -->
+    <div style="background-color: white; border-left: 4px solid #e74c3c; padding: 2rem; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1rem;">⚠️ Risks</h3>
+        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">
+            Identify, assess, and track security risks with likelihood, impact, and mitigation status.
+        </p>
+        <a href="/risks" style="background-color: #e74c3c; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block;">
+            View Risks
+        </a>
+    </div>
+
+    <!-- Quick Actions Card -->
+    <div style="background-color: white; border-left: 4px solid #27ae60; padding: 2rem; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1rem;">⚙️ Quick Actions</h3>
+        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">
+            Fast links to create new assets or risks in your inventory.
+        </p>
+        <div style="display: flex; gap: 1rem;">
+            <a href="/assets/new" style="background-color: #27ae60; color: white; padding: 0.75rem 1rem; border-radius: 4px; text-decoration: none; font-size: 0.9rem;">
+                + Asset
+            </a>
+            <a href="/risks/new" style="background-color: #c0392b; color: white; padding: 0.75rem 1rem; border-radius: 4px; text-decoration: none; font-size: 0.9rem;">
+                + Risk
+            </a>
+        </div>
+    </div>
+</div>
+
+<div style="margin-top: 4rem; padding: 2rem; background-color: #ecf0f1; border-radius: 4px;">
+    <h3 style="color: #2c3e50; margin-bottom: 1rem;">About Mini ISMS</h3>
+    <p style="color: #7f8c8d; line-height: 1.6;">
+        This platform provides a simplified yet comprehensive approach to information security management. 
+        It helps organizations track their IT assets, identify potential security risks, and manage risk mitigation efforts. 
+        Perfect for small to medium-sized organizations looking to establish a foundational ISMS.
+    </p>
+</div>
+{% endblock %}

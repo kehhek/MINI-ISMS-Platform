@@ -1,0 +1,142 @@
+from flask import Flask, session
+from flask_login import LoginManager
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from sqlalchemy import text
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+db = SQLAlchemy()
+migrate = Migrate()
+login_manager = LoginManager()
+
+
+def add_missing_columns_for_legacy_db():
+    from sqlalchemy import inspect
+
+    inspector = inspect(db.engine)
+    table_columns = {
+        'tenants': [],
+        'roles': ['tenant_id'],
+        'users': ['tenant_id', 'role_id', 'is_active', 'last_login_at'],
+        'assets': ['tenant_id', 'created_by_user_id'],
+        'risks': ['tenant_id', 'created_by_user_id'],
+        'policies': ['tenant_id', 'created_by_user_id'],
+        'controls': ['tenant_id', 'created_by_user_id'],
+        'findings': ['tenant_id', 'created_by_user_id'],
+        'corrective_actions': ['tenant_id', 'created_by_user_id'],
+        'evidence': [
+            'tenant_id', 'uploaded_by_user_id', 'file_hash', 'file_size', 'mime_type',
+            'retention_policy', 'archived_at', 'deleted_at', 'storage_provider', 'control_id', 'finding_id'
+        ],
+        'audit_events': ['tenant_id', 'user_id'],
+    }
+
+    for table_name, expected_columns in table_columns.items():
+        if table_name not in inspector.get_table_names():
+            continue
+
+        existing_columns = {column['name'] for column in inspector.get_columns(table_name)}
+        for column_name in expected_columns:
+            if column_name in existing_columns:
+                continue
+
+            if column_name in {'tenant_id', 'role_id', 'user_id', 'created_by_user_id', 'uploaded_by_user_id', 'control_id', 'finding_id'}:
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} INTEGER DEFAULT 1'))
+            elif column_name in {'file_size'}:
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} INTEGER DEFAULT 0'))
+            elif column_name in {'is_active'}:
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} BOOLEAN DEFAULT 1'))
+            elif column_name in {'last_login_at', 'archived_at', 'deleted_at'}:
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} DATETIME'))
+            else:
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} TEXT'))
+    db.session.commit()
+
+
+def seed_default_data():
+    from app.models import Tenant, Role, User
+
+    tenant = Tenant.query.first()
+    if not tenant:
+        tenant_name = os.getenv('TENANT_NAME', 'Default Tenant')
+        tenant_slug = os.getenv('TENANT_SLUG', 'default-tenant')
+        tenant = Tenant(name=tenant_name, slug=tenant_slug, status='active')
+        db.session.add(tenant)
+        db.session.commit()
+
+    for role_name, description in [
+        ('admin', 'System administrator'),
+        ('security_manager', 'Security manager'),
+        ('auditor', 'Auditor'),
+        ('user', 'Standard user'),
+    ]:
+        if not Role.query.filter_by(tenant_id=tenant.id, name=role_name).first():
+            db.session.add(Role(tenant_id=tenant.id, name=role_name, description=description))
+    db.session.commit()
+
+    default_admin_email = os.getenv('ADMIN_EMAIL', 'admin@example.com')
+    default_admin_password = os.getenv('ADMIN_PASSWORD', 'StrongPass123!')
+    default_admin_name = os.getenv('ADMIN_NAME', 'System Administrator')
+
+    existing_admin = User.query.filter_by(email=default_admin_email).first()
+    if not existing_admin:
+        admin_role = Role.query.filter_by(tenant_id=tenant.id, name='admin').first()
+        if admin_role is None:
+            admin_role = Role(tenant_id=tenant.id, name='admin', description='System administrator')
+            db.session.add(admin_role)
+            db.session.commit()
+
+        admin_user = User(
+            tenant_id=tenant.id,
+            email=default_admin_email,
+            full_name=default_admin_name,
+            role_id=admin_role.id,
+            is_active=True,
+        )
+        admin_user.set_password(default_admin_password)
+        db.session.add(admin_user)
+        db.session.commit()
+
+    return tenant
+
+
+def create_app():
+    from app import models  # import before create_all so tables are registered
+
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///mini_isms.db')
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+    app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', os.path.join(app.root_path, 'static', 'uploads'))
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['STORAGE_BACKEND'] = os.getenv('STORAGE_BACKEND', 'local')
+    app.config['STORAGE_BUCKET'] = os.getenv('STORAGE_BUCKET', 'mini-isms-local')
+    app.config['S3_ENDPOINT_URL'] = os.getenv('S3_ENDPOINT_URL')
+    app.config['S3_REGION'] = os.getenv('S3_REGION', 'us-east-1')
+    app.config['S3_ACCESS_KEY_ID'] = os.getenv('S3_ACCESS_KEY_ID')
+    app.config['S3_SECRET_ACCESS_KEY'] = os.getenv('S3_SECRET_ACCESS_KEY')
+
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    login_manager.login_view = 'main.login'
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        from app.models import User
+        return User.query.get(int(user_id))
+
+    with app.app_context():
+        db.create_all()
+        add_missing_columns_for_legacy_db()
+        seed_default_data()
+
+    from app.routes import main
+    app.register_blueprint(main)
+
+    return app

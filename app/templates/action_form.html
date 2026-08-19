@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}{% if action %}Edit Corrective Action{% else %}New Corrective Action{% endif %} - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>{% if action %}Edit Corrective Action{% else %}Create New Corrective Action for: {{ finding.title }}{% endif %}</h2>
+
+<form method="POST" style="max-width: 700px; margin-top: 2rem;">
+    <div style="margin-bottom: 1.5rem;">
+        <label for="description" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Action Description *</label>
+        <textarea 
+            id="description" 
+            name="description"
+            rows="5"
+            required
+            placeholder="Describe the corrective action to be taken..."
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem; font-family: inherit;"
+        >{{ action.description if action else '' }}</textarea>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <label for="owner" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Owner</label>
+            <input 
+                type="text" 
+                id="owner" 
+                name="owner" 
+                value="{{ action.owner if action else '' }}"
+                placeholder="Responsible person or team"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+        </div>
+        <div>
+            <label for="due_date" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Due Date</label>
+            <input 
+                type="date" 
+                id="due_date" 
+                name="due_date" 
+                value="{% if action and action.due_date %}{{ action.due_date.strftime('%Y-%m-%d') }}{% endif %}"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <label for="status" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Status</label>
+            <select 
+                id="status" 
+                name="status"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+                <option value="Not Started" {% if action and action.status == 'Not Started' %}selected{% endif %}>Not Started</option>
+                <option value="In Progress" {% if action and action.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if action and action.status == 'Completed' %}selected{% endif %}>Completed</option>
+                <option value="Verified" {% if action and action.status == 'Verified' %}selected{% endif %}>Verified</option>
+            </select>
+        </div>
+        <div>
+            <label for="completed_date" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Completion Date</label>
+            <input 
+                type="date" 
+                id="completed_date" 
+                name="completed_date" 
+                value="{% if action and action.completed_date %}{{ action.completed_date.strftime('%Y-%m-%d') }}{% endif %}"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <button 
+            type="submit" 
+            style="background-color: #27ae60; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: bold;"
+        >
+            {% if action %}Update Action{% else %}Create Action{% endif %}
+        </button>
+        <a 
+            href="{% if action %}/findings/{{ action.finding.id }}{% else %}/findings/{{ finding.id }}{% endif %}" 
+            style="background-color: #95a5a6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block; font-weight: bold;"
+        >
+            Cancel
+        </a>
+    </div>
+</form>
+
+{% if action %}
+<div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #ecf0f1;">
+    <p style="color: #7f8c8d; font-size: 0.9rem;">
+        Related Finding: <a href="/findings/{{ action.finding.id }}" style="color: #e67e22; text-decoration: none;">{{ action.finding.title }}</a>
+    </p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Findings - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>Audit Findings</h2>
+
+<div style="margin-bottom: 2rem;">
+    <a href="/findings/new" style="background-color: #e67e22; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block;">
+        + New Finding
+    </a>
+</div>
+
+{% if findings %}
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background-color: #ecf0f1; border-bottom: 2px solid #bdc3c7;">
+            <th style="padding: 1rem; text-align: left;">Title</th>
+            <th style="padding: 1rem; text-align: center;">Severity</th>
+            <th style="padding: 1rem; text-align: center;">Status</th>
+            <th style="padding: 1rem; text-align: left;">Audit Name</th>
+            <th style="padding: 1rem; text-align: left;">Identified By</th>
+            <th style="padding: 1rem; text-align: center;">Related Control</th>
+            <th style="padding: 1rem; text-align: center;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for finding in findings %}
+        <tr style="border-bottom: 1px solid #ecf0f1; {% if loop.index % 2 == 0 %}background-color: #f9f9f9;{% endif %}">
+            <td style="padding: 1rem;">
+                <strong>{{ finding.title }}</strong>
+                {% if finding.description %}
+                <br>
+                <span style="color: #7f8c8d; font-size: 0.9rem;">{{ finding.description[:50] }}{% if finding.description|length > 50 %}...{% endif %}</span>
+                {% endif %}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <span style="background-color: {% if finding.severity == 'Critical' %}#c0392b{% elif finding.severity == 'High' %}#e74c3c{% elif finding.severity == 'Medium' %}#f39c12{% else %}#27ae60{% endif %}; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.9rem; font-weight: bold;">
+                    {{ finding.severity or 'Medium' }}
+                </span>
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <span style="background-color: {% if finding.status == 'Open' %}#e74c3c{% elif finding.status == 'In Progress' %}#f39c12{% else %}#27ae60{% endif %}; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.9rem;">
+                    {{ finding.status or 'Open' }}
+                </span>
+            </td>
+            <td style="padding: 1rem;">{{ finding.audit_name or 'N/A' }}</td>
+            <td style="padding: 1rem;">{{ finding.identified_by or 'Unknown' }}</td>
+            <td style="padding: 1rem; text-align: center;">
+                {% if finding.control %}
+                <a href="/controls/{{ finding.control.id }}" style="color: #1abc9c; text-decoration: none;">{{ finding.control.name[:20] }}</a>
+                {% else %}
+                <span style="color: #95a5a6;">—</span>
+                {% endif %}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <a href="/findings/{{ finding.id }}" style="color: #3498db; text-decoration: none; margin-right: 1rem;">View</a>
+                <a href="/findings/{{ finding.id }}/edit" style="color: #f39c12; text-decoration: none; margin-right: 1rem;">Edit</a>
+                <a href="/findings/{{ finding.id }}/delete" style="color: #e74c3c; text-decoration: none;" onclick="return confirm('Are you sure?');">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="background-color: #ecf0f1; padding: 2rem; border-radius: 4px; text-align: center;">
+    <p style="color: #7f8c8d; font-size: 1.1rem;">No findings found.</p>
+    <a href="/findings/new" style="color: #e67e22; text-decoration: none;">Create the first finding</a>
+</div>
+{% endif %}
+{% endblock %}

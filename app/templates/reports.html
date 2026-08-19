@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
+    <div>
+        <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Reporting</p>
+        <h2 class="mb-1">Executive Reports</h2>
+        <p class="text-muted mb-0">Export operational metrics and security evidence for review, compliance, and leadership updates.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="/reports/risks.csv" class="btn btn-primary">Export Risk CSV</a>
+        <a href="/reports/audit-log.csv" class="btn btn-secondary">Export Audit Log</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="info-card h-100">
+            <h5 class="mb-3">Report highlights</h5>
+            <ul class="mb-0 ps-3">
+                <li>Risk register export with score, status, and ownership.</li>
+                <li>Audit log export for traceability and governance review.</li>
+                <li>Ready-made views for leadership, compliance, and remediation tracking.</li>
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="info-card h-100">
+            <h5 class="mb-3">Recent activity</h5>
+            {% if recent_events %}
+                <ul class="list-unstyled mb-0">
+                    {% for event in recent_events %}
+                        <li class="mb-2 pb-2 border-bottom">
+                            <strong>{{ event.action }}</strong>
+                            <div class="text-muted small">{{ event.entity_type }} • {{ event.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted mb-0">No recent activity recorded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

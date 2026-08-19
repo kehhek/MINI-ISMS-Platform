@@ -1,0 +1,5 @@
+/setup-adminADMIN_EMAIL=admin@test.com
+ADMIN_PASSWORD=StrongPass123!
+ADMIN_NAME=System Administrator
+TENANT_NAME=Default Tenant
+TENANT_SLUG=default-tenant

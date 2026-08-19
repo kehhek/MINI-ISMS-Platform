@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}{% if finding %}Edit Finding{% else %}New Finding{% endif %} - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>{% if finding %}Edit Finding: {{ finding.title }}{% else %}Create New Finding{% endif %}</h2>
+
+<form method="POST" style="max-width: 700px; margin-top: 2rem;">
+    <div style="margin-bottom: 1.5rem;">
+        <label for="title" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Finding Title *</label>
+        <input 
+            type="text" 
+            id="title" 
+            name="title" 
+            value="{{ finding.title if finding else '' }}" 
+            required
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="description" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Description</label>
+        <textarea 
+            id="description" 
+            name="description"
+            rows="4"
+            placeholder="Detailed description of the finding..."
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem; font-family: inherit;"
+        >{{ finding.description if finding else '' }}</textarea>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <label for="severity" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Severity</label>
+            <select 
+                id="severity" 
+                name="severity"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+                <option value="Low" {% if finding and finding.severity == 'Low' %}selected{% endif %}>Low</option>
+                <option value="Medium" {% if finding and finding.severity == 'Medium' %}selected{% endif %}>Medium</option>
+                <option value="High" {% if finding and finding.severity == 'High' %}selected{% endif %}>High</option>
+                <option value="Critical" {% if finding and finding.severity == 'Critical' %}selected{% endif %}>Critical</option>
+            </select>
+        </div>
+        <div>
+            <label for="status" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Status</label>
+            <select 
+                id="status" 
+                name="status"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+                <option value="Open" {% if finding and finding.status == 'Open' %}selected{% endif %}>Open</option>
+                <option value="In Progress" {% if finding and finding.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Closed" {% if finding and finding.status == 'Closed' %}selected{% endif %}>Closed</option>
+            </select>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <label for="audit_name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Audit Name</label>
+            <input 
+                type="text" 
+                id="audit_name" 
+                name="audit_name" 
+                value="{{ finding.audit_name if finding else '' }}"
+                placeholder="e.g., Internal Audit Q3 2026"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+        </div>
+        <div>
+            <label for="identified_by" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Identified By</label>
+            <input 
+                type="text" 
+                id="identified_by" 
+                name="identified_by" 
+                value="{{ finding.identified_by if finding else '' }}"
+                placeholder="Auditor name or team"
+                style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+            >
+        </div>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="control_id" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Related Control</label>
+        <select 
+            id="control_id" 
+            name="control_id"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+            <option value="">No specific control</option>
+            {% for control in controls %}
+            <option value="{{ control.id }}" {% if finding and finding.control_id == control.id %}selected{% endif %}>
+                {{ control.control_id }} - {{ control.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <button 
+            type="submit" 
+            style="background-color: #e67e22; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: bold;"
+        >
+            {% if finding %}Update Finding{% else %}Create Finding{% endif %}
+        </button>
+        <a 
+            href="/findings" 
+            style="background-color: #95a5a6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block; font-weight: bold;"
+        >
+            Cancel
+        </a>
+    </div>
+</form>
+
+{% if finding %}
+<div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #ecf0f1;">
+    <p style="color: #7f8c8d; font-size: 0.9rem;">
+        Identified: {{ finding.identified_date.strftime('%Y-%m-%d %H:%M:%S') if finding.identified_date else 'N/A' }}
+    </p>
+</div>
+{% endif %}
+{% endblock %}
