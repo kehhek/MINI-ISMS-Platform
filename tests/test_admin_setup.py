@@ -3,7 +3,7 @@ import unittest
 from io import BytesIO
 
 from app import create_app, db
-from app.models import Asset, Control, Evidence, Policy, Risk, User
+from app.models import Asset, Control, Evidence, Policy, Risk, User, WorkInstruction
 
 
 class AdminSetupFlowTest(unittest.TestCase):
@@ -116,6 +116,26 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertIsNotNone(policy)
         self.assertEqual(policy.document_filename, 'policy.pdf')
         self.assertTrue(policy.document_path)
+
+    def test_admin_can_create_work_instruction(self):
+        self.login_admin()
+
+        token = self.get_csrf_token()
+        response = self.client.post('/work-instructions/new', data={
+            'title': 'Password Reset Procedure',
+            'owner': 'IT Support',
+            'status': 'Approved',
+            'review_date': '2026-12-31',
+            'steps': '1. Verify identity\n2. Reset credential\n3. Notify user',
+            'document_filename': 'password-reset.pdf',
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        instruction = WorkInstruction.query.filter_by(title='Password Reset Procedure').first()
+        self.assertIsNotNone(instruction)
+        self.assertEqual(instruction.owner, 'IT Support')
+        self.assertIn('Reset credential', instruction.steps)
 
     def test_risk_crud_routes_work(self):
         self.login_admin()

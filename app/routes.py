@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.storage import get_storage_service, validate_upload
 from app.models import (
-    Tenant, Asset, Risk, Policy, Control, Finding, CorrectiveAction, Evidence, User, AuditEvent, Role
+    Tenant, Asset, Risk, Policy, WorkInstruction, Control, Finding, CorrectiveAction, Evidence, User, AuditEvent, Role
 )
 
 main = Blueprint('main', __name__)
@@ -476,6 +476,127 @@ def policy_download(policy_id):
         flash('No policy document is attached.')
         return redirect(url_for('main.policies_list'))
     return send_file(policy.document_path, as_attachment=True, download_name=policy.document_filename or 'policy.pdf', mimetype=policy.mime_type or 'application/pdf')
+
+
+# --- Work Instructions ---
+@main.route('/work-instructions')
+@login_required
+def work_instructions_list():
+    work_instructions = WorkInstruction.query.filter_by(tenant_id=current_user.tenant_id).all()
+    return render_template('work_instructions_list.html', work_instructions=work_instructions)
+
+
+@main.route('/work-instructions/new', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def work_instruction_new():
+    if request.method == 'POST':
+        review_date = request.form.get('review_date')
+        file = request.files.get('file')
+        instruction = WorkInstruction(
+            tenant_id=current_user.tenant_id,
+            title=request.form['title'],
+            version=request.form.get('version', '1.0'),
+            owner=request.form.get('owner'),
+            status=request.form.get('status', 'Draft'),
+            review_date=datetime.strptime(review_date, '%Y-%m-%d') if review_date else None,
+            steps=request.form.get('steps'),
+            created_by_user_id=current_user.id,
+        )
+
+        if file and file.filename:
+            try:
+                filename = validate_upload(file)
+            except ValueError as exc:
+                flash(str(exc))
+                return redirect(url_for('main.work_instruction_new'))
+            storage = get_storage_service(current_app)
+            filepath = storage.save(file, filename)
+            instruction.document_filename = filename
+            instruction.document_path = filepath
+            instruction.mime_type = file.mimetype or 'application/pdf'
+            instruction.file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+
+        db.session.add(instruction)
+        db.session.commit()
+        log_audit_event(current_user, 'work_instruction', instruction.id, 'created', before_value=None, after_value=instruction.title)
+        flash('Work instruction added successfully.')
+        return redirect(url_for('main.work_instructions_list'))
+    return render_template('work_instruction_form.html')
+
+
+@main.route('/work-instructions/<int:instruction_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def work_instruction_edit(instruction_id):
+    instruction = WorkInstruction.query.filter_by(id=instruction_id, tenant_id=current_user.tenant_id).first_or_404()
+    if request.method == 'POST':
+        previous = {
+            'title': instruction.title,
+            'version': instruction.version,
+            'owner': instruction.owner,
+            'status': instruction.status,
+            'review_date': instruction.review_date,
+            'steps': instruction.steps,
+            'document_filename': instruction.document_filename,
+        }
+        instruction.title = request.form['title']
+        instruction.version = request.form.get('version', instruction.version)
+        instruction.owner = request.form.get('owner')
+        instruction.status = request.form.get('status', instruction.status)
+        review_date = request.form.get('review_date')
+        instruction.review_date = datetime.strptime(review_date, '%Y-%m-%d') if review_date else None
+        instruction.steps = request.form.get('steps')
+
+        file = request.files.get('file')
+        if file and file.filename:
+            try:
+                filename = validate_upload(file)
+            except ValueError as exc:
+                flash(str(exc))
+                return redirect(url_for('main.work_instruction_edit', instruction_id=instruction.id))
+            storage = get_storage_service(current_app)
+            filepath = storage.save(file, filename)
+            instruction.document_filename = filename
+            instruction.document_path = filepath
+            instruction.mime_type = file.mimetype or 'application/pdf'
+            instruction.file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+
+        db.session.commit()
+        log_audit_event(current_user, 'work_instruction', instruction.id, 'updated', before_value=str(previous), after_value=str({
+            'title': instruction.title,
+            'version': instruction.version,
+            'owner': instruction.owner,
+            'status': instruction.status,
+            'review_date': instruction.review_date,
+            'steps': instruction.steps,
+            'document_filename': instruction.document_filename,
+        }))
+        flash('Work instruction updated successfully.')
+        return redirect(url_for('main.work_instructions_list'))
+    return render_template('work_instruction_form.html', instruction=instruction)
+
+
+@main.route('/work-instructions/<int:instruction_id>/download')
+@login_required
+def work_instruction_download(instruction_id):
+    instruction = WorkInstruction.query.filter_by(id=instruction_id, tenant_id=current_user.tenant_id).first_or_404()
+    if not instruction.document_path or not os.path.exists(instruction.document_path):
+        flash('No work instruction document is attached.')
+        return redirect(url_for('main.work_instructions_list'))
+    return send_file(instruction.document_path, as_attachment=True, download_name=instruction.document_filename or 'work-instruction.pdf', mimetype=instruction.mime_type or 'application/pdf')
+
+
+@main.route('/work-instructions/<int:instruction_id>/delete', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin')
+def work_instruction_delete(instruction_id):
+    instruction = WorkInstruction.query.filter_by(id=instruction_id, tenant_id=current_user.tenant_id).first_or_404()
+    db.session.delete(instruction)
+    db.session.commit()
+    log_audit_event(current_user, 'work_instruction', instruction_id, 'deleted', before_value=instruction.title, after_value=None)
+    flash('Work instruction deleted successfully.')
+    return redirect(url_for('main.work_instructions_list'))
 
 
 # --- Controls ---

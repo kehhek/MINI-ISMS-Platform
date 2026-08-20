@@ -24,6 +24,7 @@ def add_missing_columns_for_legacy_db():
         'assets': ['tenant_id', 'created_by_user_id'],
         'risks': ['tenant_id', 'created_by_user_id'],
         'policies': ['tenant_id', 'created_by_user_id', 'document_filename', 'document_path', 'mime_type', 'file_size'],
+        'work_instructions': ['tenant_id', 'created_by_user_id', 'review_date', 'steps', 'document_filename', 'document_path', 'mime_type', 'file_size'],
         'controls': ['tenant_id', 'created_by_user_id'],
         'findings': ['tenant_id', 'created_by_user_id'],
         'corrective_actions': ['tenant_id', 'created_by_user_id'],

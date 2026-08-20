@@ -17,6 +17,7 @@ class Tenant(db.Model):
     assets = db.relationship('Asset', backref='tenant', lazy=True)
     risks = db.relationship('Risk', backref='tenant', lazy=True)
     policies = db.relationship('Policy', backref='tenant', lazy=True)
+    work_instructions = db.relationship('WorkInstruction', backref='tenant', lazy=True)
     controls = db.relationship('Control', backref='tenant', lazy=True)
     findings = db.relationship('Finding', backref='tenant', lazy=True)
     evidence = db.relationship('Evidence', backref='tenant', lazy=True)
@@ -132,6 +133,28 @@ class Policy(db.Model):
 
     def __repr__(self):
         return f'<Policy {self.title}>'
+
+
+class WorkInstruction(db.Model):
+    __tablename__ = 'work_instructions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)
+    title = db.Column(db.String(200), nullable=False)
+    version = db.Column(db.String(20), default='1.0')
+    owner = db.Column(db.String(100))
+    status = db.Column(db.String(50), default='Draft')
+    review_date = db.Column(db.DateTime, nullable=True)
+    steps = db.Column(db.Text)
+    document_filename = db.Column(db.String(255), nullable=True)
+    document_path = db.Column(db.String(500), nullable=True)
+    mime_type = db.Column(db.String(100), nullable=True)
+    file_size = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    def __repr__(self):
+        return f'<WorkInstruction {self.title}>'
 
 
 class Control(db.Model):

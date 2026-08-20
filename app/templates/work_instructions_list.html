@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Work Instructions - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<h2>Work Instructions</h2>
+
+<div style="margin-bottom: 2rem;">
+    <a href="/work-instructions/new" style="background-color: #9b59b6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; display: inline-block;">
+        + New Work Instruction
+    </a>
+</div>
+
+{% if work_instructions %}
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background-color: #ecf0f1; border-bottom: 2px solid #bdc3c7;">
+            <th style="padding: 1rem; text-align: left;">Title</th>
+            <th style="padding: 1rem; text-align: center;">Version</th>
+            <th style="padding: 1rem; text-align: left;">Owner</th>
+            <th style="padding: 1rem; text-align: center;">Status</th>
+            <th style="padding: 1rem; text-align: center;">Review Date</th>
+            <th style="padding: 1rem; text-align: center;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for instruction in work_instructions %}
+        <tr style="border-bottom: 1px solid #ecf0f1; {% if loop.index % 2 == 0 %}background-color: #f9f9f9;{% endif %}">
+            <td style="padding: 1rem;">
+                <strong>{{ instruction.title }}</strong>
+                {% if instruction.steps %}
+                <br>
+                <span style="color: #7f8c8d; font-size: 0.9rem;">{{ instruction.steps[:60] }}{% if instruction.steps|length > 60 %}...{% endif %}</span>
+                {% endif %}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <span style="background-color: #95a5a6; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.9rem;">
+                    v{{ instruction.version }}
+                </span>
+            </td>
+            <td style="padding: 1rem;">{{ instruction.owner or 'Unassigned' }}</td>
+            <td style="padding: 1rem; text-align: center;">
+                <span style="background-color: {% if instruction.status == 'Draft' %}#95a5a6{% elif instruction.status == 'Approved' %}#27ae60{% elif instruction.status == 'Under Review' %}#f39c12{% else %}#c0392b{% endif %}; color: white; padding: 0.25rem 0.75rem; border-radius: 3px; font-size: 0.9rem;">
+                    {{ instruction.status or 'Draft' }}
+                </span>
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                {% if instruction.review_date %}
+                <span style="color: {% if instruction.review_date < now %}#e74c3c{% else %}#27ae60{% endif %};">
+                    {{ instruction.review_date.strftime('%Y-%m-%d') }}
+                </span>
+                {% else %}
+                <span style="color: #95a5a6;">—</span>
+                {% endif %}
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                {% if instruction.document_filename %}
+                <a href="/work-instructions/{{ instruction.id }}/download" style="color: #3498db; text-decoration: none; margin-right: 1rem;">Download</a>
+                {% endif %}
+                <a href="/work-instructions/{{ instruction.id }}/edit" style="color: #f39c12; text-decoration: none; margin-right: 1rem;">Edit</a>
+                <a href="/work-instructions/{{ instruction.id }}/delete" style="color: #e74c3c; text-decoration: none;" onclick="return confirm('Are you sure?');">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="background-color: #ecf0f1; padding: 2rem; border-radius: 4px; text-align: center;">
+    <p style="color: #7f8c8d; font-size: 1.1rem;">No work instructions found.</p>
+    <a href="/work-instructions/new" style="color: #9b59b6; text-decoration: none;">Create the first work instruction</a>
+</div>
+{% endif %}
+{% endblock %}
