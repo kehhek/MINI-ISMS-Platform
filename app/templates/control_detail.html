@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Control: {{ control.name }} - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>{{ control.name }}</h2>
+    <div style="display: flex; gap: 1rem;">
+        <a href="/controls/{{ control.id }}/edit" style="background-color: #f39c12; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">
+            Edit
+        </a>
+        <a href="/controls" style="background-color: #95a5a6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">
+            Back to Controls
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1.5rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">Control Details</h3>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Control ID</p>
+            <p style="font-size: 1rem; font-family: monospace;">{{ control.control_id or 'N/A' }}</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Control Type</p>
+            <span style="background-color: {% if control.control_type == 'Preventive' %}#3498db{% elif control.control_type == 'Detective' %}#f39c12{% else %}#e74c3c{% endif %}; color: white; padding: 0.5rem 1rem; border-radius: 3px; font-weight: bold;">
+                {{ control.control_type or 'N/A' }}
+            </span>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Implementation Status</p>
+            <span style="background-color: {% if control.implementation_status == 'Implemented' %}#27ae60{% elif control.implementation_status == 'Partially Implemented' %}#f39c12{% else %}#95a5a6{% endif %}; color: white; padding: 0.5rem 1rem; border-radius: 3px; font-weight: bold;">
+                {{ control.implementation_status or 'Not Implemented' }}
+            </span>
+        </div>
+
+        {% if control.risk %}
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Related Risk</p>
+            <a href="/risks/{{ control.risk.id }}" style="color: #e74c3c; text-decoration: none; font-weight: bold;">
+                {{ control.risk.title }}
+            </a>
+        </div>
+        {% endif %}
+
+        {% if control.policy %}
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Related Policy</p>
+            <a href="/policies/{{ control.policy.id }}" style="color: #9b59b6; text-decoration: none; font-weight: bold;">
+                {{ control.policy.title }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">Description</h3>
+        <p style="color: #555; line-height: 1.6; white-space: pre-wrap;">
+            {% if control.description %}
+                {{ control.description }}
+            {% else %}
+                <span style="color: #95a5a6; font-style: italic;">No description provided.</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div style="margin-top: 2rem; text-align: center;">
+    <a href="/controls/{{ control.id }}/delete" style="background-color: #c0392b; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;" onclick="return confirm('Are you sure? This will permanently delete this control.');">
+        Delete Control
+    </a>
+</div>
+{% endblock %}

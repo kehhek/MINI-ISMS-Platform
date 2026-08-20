@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Evidence: {{ evidence.title }} - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>{{ evidence.title }}</h2>
+    <div style="display: flex; gap: 1rem;">
+        <a href="/evidence/{{ evidence.id }}/edit" style="background-color: #f39c12; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">
+            Edit
+        </a>
+        <a href="/evidence" style="background-color: #95a5a6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">
+            Back to Evidence
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1.5rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">Evidence Details</h3>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Filename</p>
+            <p style="font-size: 1rem;">{{ evidence.filename or 'Not available' }}</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Uploaded By</p>
+            <p style="font-size: 1rem;">{{ evidence.uploaded_by or 'Unknown' }}</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Uploaded Date</p>
+            <p style="font-size: 1rem;">{{ evidence.uploaded_date.strftime('%Y-%m-%d %H:%M:%S') if evidence.uploaded_date else 'N/A' }}</p>
+        </div>
+
+        {% if evidence.control %}
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Related Control</p>
+            <a href="/controls/{{ evidence.control.id }}" style="color: #1abc9c; text-decoration: none; font-weight: bold;">
+                {{ evidence.control.name }}
+            </a>
+        </div>
+        {% endif %}
+
+        {% if evidence.finding %}
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Related Finding</p>
+            <a href="/findings/{{ evidence.finding.id }}" style="color: #e67e22; text-decoration: none; font-weight: bold;">
+                {{ evidence.finding.title }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">Description</h3>
+        <p style="color: #555; line-height: 1.6; white-space: pre-wrap;">
+            {% if evidence.description %}
+                {{ evidence.description }}
+            {% else %}
+                <span style="color: #95a5a6; font-style: italic;">No description provided.</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div style="margin-top: 2rem; text-align: center;">
+    <a href="/evidence/{{ evidence.id }}/delete" style="background-color: #c0392b; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;" onclick="return confirm('Are you sure? This will permanently delete this evidence record.');">
+        Delete Evidence
+    </a>
+</div>
+{% endblock %}

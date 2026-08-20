@@ -6,6 +6,7 @@
 <h2>{% if asset %}Edit Asset: {{ asset.name }}{% else %}Create New Asset{% endif %}</h2>
 
 <form method="POST" style="max-width: 600px; margin-top: 2rem;">
+    <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
     <div style="margin-bottom: 1.5rem;">
         <label for="name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Asset Name *</label>
         <input 

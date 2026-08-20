@@ -6,6 +6,7 @@
 <h2>{% if evidence %}Edit Evidence{% else %}Upload New Evidence{% endif %}</h2>
 
 <form method="POST" enctype="multipart/form-data" style="max-width: 800px; margin-top: 2rem;">
+    <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
     <div style="margin-bottom: 1.5rem;">
         <label for="title" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Evidence Title *</label>
         <input 

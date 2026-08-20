@@ -1,4 +1,4 @@
-from flask import Flask, session
+from flask import Flask, session, request
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -77,9 +77,12 @@ def seed_default_data():
             db.session.add(Role(tenant_id=tenant.id, name=role_name, description=description))
     db.session.commit()
 
-    default_admin_email = os.getenv('ADMIN_EMAIL', 'admin@example.com')
-    default_admin_password = os.getenv('ADMIN_PASSWORD', 'StrongPass123!')
+    default_admin_email = os.getenv('ADMIN_EMAIL')
+    default_admin_password = os.getenv('ADMIN_PASSWORD')
     default_admin_name = os.getenv('ADMIN_NAME', 'System Administrator')
+
+    if not default_admin_email or not default_admin_password:
+        return tenant
 
     existing_admin = User.query.filter_by(email=default_admin_email).first()
     if not existing_admin:
@@ -108,10 +111,18 @@ def create_app():
 
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///mini_isms.db')
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-    app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', os.path.join(app.root_path, 'static', 'uploads'))
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+    if not app.config['SECRET_KEY']:
+        raise RuntimeError('SECRET_KEY environment variable is required. Set it before starting the app.')
+    app.config['ENV'] = 'production' if os.getenv('APP_ENV') == 'production' else 'development'
+    app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', os.path.join(app.instance_path, 'uploads'))
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+    app.config['ALLOWED_UPLOAD_EXTENSIONS'] = {'.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'}
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', '1' if os.getenv('APP_ENV') == 'production' else '0') == '1'
+    app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
     app.config['STORAGE_BACKEND'] = os.getenv('STORAGE_BACKEND', 'local')
     app.config['STORAGE_BUCKET'] = os.getenv('STORAGE_BUCKET', 'mini-isms-local')
     app.config['S3_ENDPOINT_URL'] = os.getenv('S3_ENDPOINT_URL')
@@ -120,6 +131,43 @@ def create_app():
     app.config['S3_SECRET_ACCESS_KEY'] = os.getenv('S3_SECRET_ACCESS_KEY')
 
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+    @app.before_request
+    def ensure_csrf_token():
+        if '_csrf_token' not in session:
+            import secrets
+            session['_csrf_token'] = secrets.token_urlsafe(32)
+
+    @app.before_request
+    def enforce_csrf_on_state_changes():
+        if request.method not in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+            return None
+        if request.path.startswith('/static'):
+            return None
+        submitted = request.form.get('csrf_token')
+        if submitted != session.get('_csrf_token'):
+            from flask import abort
+            abort(400, description='Invalid or missing CSRF token.')
+
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "img-src 'self' data: https:; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "font-src 'self' https://cdn.jsdelivr.net data:; "
+            "connect-src 'self'; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "frame-ancestors 'none'"
+        )
+        return response
 
     db.init_app(app)
     migrate.init_app(app, db)

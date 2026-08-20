@@ -1,5 +1,48 @@
 import os
 from pathlib import Path
+import zipfile
+from uuid import uuid4
+from werkzeug.utils import secure_filename
+
+
+def validate_upload(file):
+    if file is None or not getattr(file, 'filename', None):
+        raise ValueError('No file was uploaded.')
+
+    filename = secure_filename(file.filename)
+    if not filename:
+        raise ValueError('Invalid file name.')
+
+    ext = os.path.splitext(filename)[1].lower()
+    allowed = {'.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'}
+    if ext not in allowed:
+        raise ValueError('File type is not allowed.')
+
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    if size <= 0 or size > 16 * 1024 * 1024:
+        raise ValueError('File exceeds the 16MB upload limit.')
+
+    sample = file.read(8192)
+    file.seek(0)
+
+    if ext == '.pdf' and not sample.startswith(b'%PDF'):
+        raise ValueError('PDF content is invalid.')
+    if ext in {'.png'} and not sample.startswith(b'\x89PNG\r\n\x1a\n'):
+        raise ValueError('PNG content is invalid.')
+    if ext in {'.jpg', '.jpeg'} and sample[:2] not in {b'\xff\xd8', b'\xFF\xD8'}:
+        raise ValueError('JPEG content is invalid.')
+    if ext in {'.docx', '.xlsx'}:
+        try:
+            if not zipfile.is_zipfile(file):
+                raise ValueError('Archive content is invalid.')
+        finally:
+            file.seek(0)
+    if ext in {'.csv', '.txt'} and b'\x00' in sample:
+        raise ValueError('Text file content is invalid.')
+
+    return filename
 
 
 class StorageService:
@@ -15,8 +58,8 @@ class StorageService:
     @property
     def upload_root(self):
         if self.app is None:
-            return os.getenv('UPLOAD_FOLDER', str(Path(__file__).resolve().parent / 'static' / 'uploads'))
-        return self.app.config.get('UPLOAD_FOLDER', str(Path(__file__).resolve().parent / 'static' / 'uploads'))
+            return os.getenv('UPLOAD_FOLDER', str(Path(__file__).resolve().parent.parent / 'instance' / 'uploads'))
+        return self.app.config.get('UPLOAD_FOLDER', str(Path(__file__).resolve().parent.parent / 'instance' / 'uploads'))
 
     @property
     def bucket_name(self):
@@ -32,7 +75,9 @@ class StorageService:
     def _save_to_local(self, file, filename):
         target_dir = Path(self.upload_root)
         target_dir.mkdir(parents=True, exist_ok=True)
-        target_path = target_dir / filename
+        safe_name = secure_filename(filename)
+        suffix = Path(safe_name).suffix.lower()
+        target_path = target_dir / f"{uuid4().hex}{suffix}"
         file.save(str(target_path))
         return str(target_path)
 

@@ -11,6 +11,7 @@
                 <p class="text-muted">Create your first tenant and admin account to start using Mini ISMS.</p>
 
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
                     <div class="mb-3">
                         <label for="tenant_name" class="form-label">Tenant Name</label>
                         <input type="text" class="form-control" id="tenant_name" name="tenant_name" value="Default Tenant" required>

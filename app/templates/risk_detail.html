@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Risk: {{ risk.title }} - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>{{ risk.title }}</h2>
+    <div style="display: flex; gap: 1rem;">
+        <a href="/risks/{{ risk.id }}/edit" style="background-color: #f39c12; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">
+            Edit
+        </a>
+        <a href="/risks" style="background-color: #95a5a6; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">
+            Back to Risks
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1.5rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">Risk Details</h3>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Likelihood</p>
+            <span style="background-color: #3498db; color: white; padding: 0.5rem 1rem; border-radius: 3px; font-weight: bold;">
+                {{ risk.likelihood or 'N/A' }}
+            </span>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Impact</p>
+            <span style="background-color: #e67e22; color: white; padding: 0.5rem 1rem; border-radius: 3px; font-weight: bold;">
+                {{ risk.impact or 'N/A' }}
+            </span>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Risk Score</p>
+            {% if risk.risk_score is not none %}
+            <span style="background-color: {% if risk.risk_score >= 20 %}#c0392b{% elif risk.risk_score >= 12 %}#e74c3c{% elif risk.risk_score >= 6 %}#f39c12{% else %}#27ae60{% endif %}; color: white; padding: 0.5rem 1rem; border-radius: 3px; font-weight: bold;">
+                {{ risk.risk_score }}
+            </span>
+            {% else %}
+            <span style="color: #95a5a6;">—</span>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Status</p>
+            <span style="background-color: {% if risk.status == 'Open' %}#e74c3c{% elif risk.status == 'Mitigated' %}#f39c12{% elif risk.status == 'Accepted' %}#3498db{% else %}#27ae60{% endif %}; color: white; padding: 0.5rem 1rem; border-radius: 3px; font-weight: bold;">
+                {{ risk.status or 'Open' }}
+            </span>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Owner</p>
+            <p style="font-size: 1rem;">{{ risk.owner or 'Unassigned' }}</p>
+        </div>
+
+        {% if risk.asset %}
+        <div style="margin-bottom: 1.5rem;">
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">Related Asset</p>
+            <a href="/assets/{{ risk.asset.id }}" style="color: #1abc9c; text-decoration: none; font-weight: bold;">
+                {{ risk.asset.name }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; margin-bottom: 1rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">Description</h3>
+        <p style="color: #555; line-height: 1.6; white-space: pre-wrap;">
+            {% if risk.description %}
+                {{ risk.description }}
+            {% else %}
+                <span style="color: #95a5a6; font-style: italic;">No description provided.</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div style="margin-top: 2rem; text-align: center;">
+    <a href="/risks/{{ risk.id }}/delete" style="background-color: #c0392b; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;" onclick="return confirm('Are you sure? This will permanently delete this risk.');">
+        Delete Risk
+    </a>
+</div>
+{% endblock %}

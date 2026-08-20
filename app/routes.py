@@ -1,20 +1,25 @@
+from collections import defaultdict
 from functools import wraps
 from io import StringIO
 import csv
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file
 from flask_login import login_required, login_user, logout_user, current_user
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.storage import get_storage_service
+from app.storage import get_storage_service, validate_upload
 from app.models import (
     Tenant, Asset, Risk, Policy, Control, Finding, CorrectiveAction, Evidence, User, AuditEvent, Role
 )
 
 main = Blueprint('main', __name__)
+
+FAILED_LOGIN_ATTEMPTS = defaultdict(list)
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
 
 
 def get_tenant_scope(model):
@@ -91,9 +96,18 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
+        now = datetime.utcnow()
+        attempts = FAILED_LOGIN_ATTEMPTS.get(request.remote_addr, [])
+        attempts = [ts for ts in attempts if ts > now - timedelta(seconds=LOCKOUT_SECONDS)]
+        FAILED_LOGIN_ATTEMPTS[request.remote_addr] = attempts
+
+        if len(attempts) >= MAX_LOGIN_ATTEMPTS:
+            return (render_template('login.html', locked_out=True), 429)
+
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
+            FAILED_LOGIN_ATTEMPTS.pop(request.remote_addr, None)
             login_user(user)
             user.last_login_at = datetime.utcnow()
             db.session.commit()
@@ -101,9 +115,11 @@ def login():
             flash('Welcome back.')
             return redirect(url_for('main.dashboard'))
 
+        attempts.append(now)
+        FAILED_LOGIN_ATTEMPTS[request.remote_addr] = attempts
         flash('Invalid email or password.')
 
-    return render_template('login.html')
+    return render_template('login.html', locked_out=False)
 
 
 @main.route('/logout')
@@ -144,6 +160,59 @@ def asset_new():
     return render_template('asset_form.html')
 
 
+@main.route('/assets/<int:asset_id>')
+@login_required
+def asset_detail(asset_id):
+    asset = Asset.query.filter_by(id=asset_id, tenant_id=current_user.tenant_id).first_or_404()
+    return render_template('asset_detail.html', asset=asset)
+
+
+@main.route('/assets/<int:asset_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def asset_edit(asset_id):
+    asset = Asset.query.filter_by(id=asset_id, tenant_id=current_user.tenant_id).first_or_404()
+    if request.method == 'POST':
+        previous = {
+            'name': asset.name,
+            'asset_type': asset.asset_type,
+            'owner': asset.owner,
+            'classification': asset.classification,
+            'location': asset.location,
+            'description': asset.description,
+        }
+        asset.name = request.form['name']
+        asset.asset_type = request.form.get('asset_type')
+        asset.owner = request.form.get('owner')
+        asset.classification = request.form.get('classification')
+        asset.location = request.form.get('location')
+        asset.description = request.form.get('description')
+        db.session.commit()
+        log_audit_event(current_user, 'asset', asset.id, 'updated', before_value=str(previous), after_value=str({
+            'name': asset.name,
+            'asset_type': asset.asset_type,
+            'owner': asset.owner,
+            'classification': asset.classification,
+            'location': asset.location,
+            'description': asset.description,
+        }))
+        flash('Asset updated successfully.')
+        return redirect(url_for('main.asset_detail', asset_id=asset.id))
+    return render_template('asset_form.html', asset=asset)
+
+
+@main.route('/assets/<int:asset_id>/delete', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin')
+def asset_delete(asset_id):
+    asset = Asset.query.filter_by(id=asset_id, tenant_id=current_user.tenant_id).first_or_404()
+    db.session.delete(asset)
+    db.session.commit()
+    log_audit_event(current_user, 'asset', asset_id, 'deleted', before_value=asset.name, after_value=None)
+    flash('Asset deleted successfully.')
+    return redirect(url_for('main.assets_list'))
+
+
 # --- Risks ---
 @main.route('/risks')
 @login_required
@@ -166,6 +235,7 @@ def risk_new():
             likelihood=int(request.form['likelihood']),
             impact=int(request.form['impact']),
             owner=request.form['owner'],
+            status=request.form.get('status', 'Open'),
             created_by_user_id=current_user.id,
         )
         db.session.add(risk)
@@ -175,6 +245,65 @@ def risk_new():
         return redirect(url_for('main.risks_list'))
     assets = Asset.query.filter_by(tenant_id=current_user.tenant_id).all()
     return render_template('risk_form.html', assets=assets)
+
+
+@main.route('/risks/<int:risk_id>')
+@login_required
+def risk_detail(risk_id):
+    risk = Risk.query.filter_by(id=risk_id, tenant_id=current_user.tenant_id).first_or_404()
+    return render_template('risk_detail.html', risk=risk)
+
+
+@main.route('/risks/<int:risk_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager', 'user')
+def risk_edit(risk_id):
+    risk = Risk.query.filter_by(id=risk_id, tenant_id=current_user.tenant_id).first_or_404()
+    assets = Asset.query.filter_by(tenant_id=current_user.tenant_id).all()
+
+    if request.method == 'POST':
+        previous = {
+            'title': risk.title,
+            'description': risk.description,
+            'asset_id': risk.asset_id,
+            'likelihood': risk.likelihood,
+            'impact': risk.impact,
+            'owner': risk.owner,
+            'status': risk.status,
+        }
+        risk.title = request.form['title']
+        risk.description = request.form.get('description')
+        risk.asset_id = request.form.get('asset_id') or None
+        risk.likelihood = int(request.form['likelihood']) if request.form.get('likelihood') else None
+        risk.impact = int(request.form['impact']) if request.form.get('impact') else None
+        risk.owner = request.form.get('owner')
+        risk.status = request.form.get('status', risk.status or 'Open')
+        db.session.commit()
+        log_audit_event(current_user, 'risk', risk.id, 'updated', before_value=str(previous), after_value=str({
+            'title': risk.title,
+            'description': risk.description,
+            'asset_id': risk.asset_id,
+            'likelihood': risk.likelihood,
+            'impact': risk.impact,
+            'owner': risk.owner,
+            'status': risk.status,
+        }))
+        flash('Risk updated successfully.')
+        return redirect(url_for('main.risk_detail', risk_id=risk.id))
+
+    return render_template('risk_form.html', risk=risk, assets=assets)
+
+
+@main.route('/risks/<int:risk_id>/delete', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin')
+def risk_delete(risk_id):
+    risk = Risk.query.filter_by(id=risk_id, tenant_id=current_user.tenant_id).first_or_404()
+    db.session.delete(risk)
+    db.session.commit()
+    log_audit_event(current_user, 'risk', risk_id, 'deleted', before_value=risk.title, after_value=None)
+    flash('Risk deleted successfully.')
+    return redirect(url_for('main.risks_list'))
 
 
 # --- Policies ---
@@ -207,6 +336,41 @@ def policy_new():
         flash('Policy added successfully.')
         return redirect(url_for('main.policies_list'))
     return render_template('policy_form.html')
+
+
+@main.route('/policies/<int:policy_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def policy_edit(policy_id):
+    policy = Policy.query.filter_by(id=policy_id, tenant_id=current_user.tenant_id).first_or_404()
+    if request.method == 'POST':
+        previous = {
+            'title': policy.title,
+            'version': policy.version,
+            'owner': policy.owner,
+            'status': policy.status,
+            'review_date': policy.review_date,
+            'content_summary': policy.content_summary,
+        }
+        policy.title = request.form['title']
+        policy.version = request.form.get('version')
+        policy.owner = request.form.get('owner')
+        policy.status = request.form.get('status')
+        review_date = request.form.get('review_date')
+        policy.review_date = datetime.strptime(review_date, '%Y-%m-%d') if review_date else None
+        policy.content_summary = request.form.get('content_summary')
+        db.session.commit()
+        log_audit_event(current_user, 'policy', policy.id, 'updated', before_value=str(previous), after_value=str({
+            'title': policy.title,
+            'version': policy.version,
+            'owner': policy.owner,
+            'status': policy.status,
+            'review_date': policy.review_date,
+            'content_summary': policy.content_summary,
+        }))
+        flash('Policy updated successfully.')
+        return redirect(url_for('main.policies_list'))
+    return render_template('policy_form.html', policy=policy)
 
 
 # --- Controls ---
@@ -243,6 +407,66 @@ def control_new():
     risks = Risk.query.filter_by(tenant_id=current_user.tenant_id).all()
     policies = Policy.query.filter_by(tenant_id=current_user.tenant_id).all()
     return render_template('control_form.html', risks=risks, policies=policies)
+
+
+@main.route('/controls/<int:control_id>')
+@login_required
+def control_detail(control_id):
+    control = Control.query.filter_by(id=control_id, tenant_id=current_user.tenant_id).first_or_404()
+    return render_template('control_detail.html', control=control)
+
+
+@main.route('/controls/<int:control_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def control_edit(control_id):
+    control = Control.query.filter_by(id=control_id, tenant_id=current_user.tenant_id).first_or_404()
+    risks = Risk.query.filter_by(tenant_id=current_user.tenant_id).all()
+    policies = Policy.query.filter_by(tenant_id=current_user.tenant_id).all()
+
+    if request.method == 'POST':
+        previous = {
+            'control_id': control.control_id,
+            'name': control.name,
+            'description': control.description,
+            'control_type': control.control_type,
+            'implementation_status': control.implementation_status,
+            'risk_id': control.risk_id,
+            'policy_id': control.policy_id,
+        }
+        control.control_id = request.form.get('control_id')
+        control.name = request.form['name']
+        control.description = request.form.get('description')
+        control.control_type = request.form.get('control_type')
+        control.implementation_status = request.form.get('implementation_status')
+        control.risk_id = request.form.get('risk_id') or None
+        control.policy_id = request.form.get('policy_id') or None
+        db.session.commit()
+        log_audit_event(current_user, 'control', control.id, 'updated', before_value=str(previous), after_value=str({
+            'control_id': control.control_id,
+            'name': control.name,
+            'description': control.description,
+            'control_type': control.control_type,
+            'implementation_status': control.implementation_status,
+            'risk_id': control.risk_id,
+            'policy_id': control.policy_id,
+        }))
+        flash('Control updated successfully.')
+        return redirect(url_for('main.control_detail', control_id=control.id))
+
+    return render_template('control_form.html', control=control, risks=risks, policies=policies)
+
+
+@main.route('/controls/<int:control_id>/delete', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin')
+def control_delete(control_id):
+    control = Control.query.filter_by(id=control_id, tenant_id=current_user.tenant_id).first_or_404()
+    db.session.delete(control)
+    db.session.commit()
+    log_audit_event(current_user, 'control', control_id, 'deleted', before_value=control.name, after_value=None)
+    flash('Control deleted successfully.')
+    return redirect(url_for('main.controls_list'))
 
 
 # --- Findings ---
@@ -411,8 +635,17 @@ def evidence_list():
 @require_roles('admin', 'security_manager', 'user')
 def evidence_new():
     if request.method == 'POST':
-        file = request.files['file']
-        filename = secure_filename(file.filename)
+        file = request.files.get('file')
+        if file is None or not file.filename:
+            flash('Please select a file to upload.')
+            return redirect(url_for('main.evidence_new'))
+
+        try:
+            filename = validate_upload(file)
+        except ValueError as exc:
+            flash(str(exc))
+            return redirect(url_for('main.evidence_new'))
+
         storage = get_storage_service(current_app)
         filepath = storage.save(file, filename)
 
@@ -444,6 +677,76 @@ def evidence_new():
     controls = Control.query.filter_by(tenant_id=current_user.tenant_id).all()
     findings = Finding.query.filter_by(tenant_id=current_user.tenant_id).all()
     return render_template('evidence_form.html', controls=controls, findings=findings)
+
+
+@main.route('/evidence/<int:evidence_id>')
+@login_required
+def evidence_detail(evidence_id):
+    evidence = Evidence.query.filter_by(id=evidence_id, tenant_id=current_user.tenant_id).first_or_404()
+    return render_template('evidence_detail.html', evidence=evidence)
+
+
+@main.route('/evidence/<int:evidence_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager', 'user')
+def evidence_edit(evidence_id):
+    evidence = Evidence.query.filter_by(id=evidence_id, tenant_id=current_user.tenant_id).first_or_404()
+    controls = Control.query.filter_by(tenant_id=current_user.tenant_id).all()
+    findings = Finding.query.filter_by(tenant_id=current_user.tenant_id).all()
+
+    if request.method == 'POST':
+        previous = {
+            'title': evidence.title,
+            'uploaded_by': evidence.uploaded_by,
+            'description': evidence.description,
+            'control_id': evidence.control_id,
+            'finding_id': evidence.finding_id,
+        }
+        evidence.title = request.form['title']
+        evidence.uploaded_by = request.form.get('uploaded_by')
+        evidence.description = request.form.get('description')
+        evidence.control_id = request.form.get('control_id') or None
+        evidence.finding_id = request.form.get('finding_id') or None
+
+        file = request.files.get('file')
+        if file and file.filename:
+            try:
+                filename = validate_upload(file)
+            except ValueError as exc:
+                flash(str(exc))
+                return redirect(url_for('main.evidence_edit', evidence_id=evidence.id))
+            storage = get_storage_service(current_app)
+            filepath = storage.save(file, filename)
+            evidence.filename = filename
+            evidence.file_path = filepath
+            evidence.file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+            evidence.mime_type = file.mimetype
+            evidence.storage_provider = current_app.config.get('STORAGE_BACKEND', 'local')
+
+        db.session.commit()
+        log_audit_event(current_user, 'evidence', evidence.id, 'updated', before_value=str(previous), after_value=str({
+            'title': evidence.title,
+            'uploaded_by': evidence.uploaded_by,
+            'description': evidence.description,
+            'control_id': evidence.control_id,
+            'finding_id': evidence.finding_id,
+        }))
+        flash('Evidence updated successfully.')
+        return redirect(url_for('main.evidence_detail', evidence_id=evidence.id))
+
+    return render_template('evidence_form.html', evidence=evidence, controls=controls, findings=findings)
+
+
+@main.route('/evidence/<int:evidence_id>/delete', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin')
+def evidence_delete(evidence_id):
+    evidence = Evidence.query.filter_by(id=evidence_id, tenant_id=current_user.tenant_id).first_or_404()
+    db.session.delete(evidence)
+    db.session.commit()
+    log_audit_event(current_user, 'evidence', evidence_id, 'deleted', before_value=evidence.title, after_value=None)
+    flash('Evidence deleted successfully.')
+    return redirect(url_for('main.evidence_list'))
 
 
 # --- Reports / Exports ---

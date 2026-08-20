@@ -23,23 +23,19 @@
             {% endwith %}
 
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
                 <div class="form-group mb-3">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" class="form-control" value="admin@example.com" required>
+                    <input type="email" id="email" name="email" class="form-control" placeholder="name@company.com" required>
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" class="form-control" value="StrongPass123!" required>
+                    <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required>
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100">Sign in</button>
             </form>
-
-            <div class="auth-footer mt-4 text-center">
-                <small class="text-muted">Demo admin account</small>
-                <div class="mt-1"><strong>admin@example.com</strong> / <strong>StrongPass123!</strong></div>
-            </div>
         </div>
     </div>
 </div>

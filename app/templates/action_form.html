@@ -6,6 +6,7 @@
 <h2>{% if action %}Edit Corrective Action{% else %}Create New Corrective Action for: {{ finding.title }}{% endif %}</h2>
 
 <form method="POST" style="max-width: 700px; margin-top: 2rem;">
+    <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
     <div style="margin-bottom: 1.5rem;">
         <label for="description" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Action Description *</label>
         <textarea 

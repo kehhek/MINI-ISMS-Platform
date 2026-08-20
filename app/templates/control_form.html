@@ -6,6 +6,7 @@
 <h2>{% if control %}Edit Control: {{ control.name }}{% else %}Create New Control{% endif %}</h2>
 
 <form method="POST" style="max-width: 700px; margin-top: 2rem;">
+    <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
     <div style="margin-bottom: 1.5rem;">
         <label for="name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Control Name *</label>
         <input 
