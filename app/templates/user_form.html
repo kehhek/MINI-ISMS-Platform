@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Add User - Invaryant ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="card app-panel p-4" style="max-width: 700px; margin: 0 auto;">
+    <h2>Add New User</h2>
+    <p class="text-muted">Create a new tenant user and assign a role.</p>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
+
+        <div class="mb-3">
+            <label for="full_name" class="form-label">Full name</label>
+            <input id="full_name" name="full_name" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input id="email" name="email" type="email" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input id="password" name="password" type="password" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="role_id" class="form-label">Role</label>
+            <select id="role_id" name="role_id" class="form-select" required>
+                {% for role in roles %}
+                <option value="{{ role.id }}">{{ role.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-check mb-4">
+            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" value="1" checked>
+            <label class="form-check-label" for="is_active">Active user</label>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Create user</button>
+            <a href="/users" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

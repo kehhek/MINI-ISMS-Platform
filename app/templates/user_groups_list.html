@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}User Groups - Invaryant ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Access</p>
+        <h2 class="mb-0">User Groups</h2>
+    </div>
+    <a href="/user-groups/new" class="btn btn-primary">Create group</a>
+</div>
+
+{% if groups %}
+<div class="row g-4">
+    {% for group in groups %}
+    <div class="col-md-6">
+        <div class="card h-100 p-4">
+            <h4 class="mb-1">{{ group.name }}</h4>
+            {% if group.description %}
+            <p class="text-muted mb-3">{{ group.description }}</p>
+            {% endif %}
+            <div class="small text-muted">
+                Members: {{ group.users.count() }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <h5 class="mb-2">No user groups yet</h5>
+    <p class="mb-0">Create a team or functional group to organize users.</p>
+</div>
+{% endif %}
+{% endblock %}

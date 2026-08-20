@@ -2,6 +2,8 @@ from collections import defaultdict
 from functools import wraps
 from io import StringIO
 import csv
+import hashlib
+import json
 import os
 from datetime import datetime, timedelta
 
@@ -13,7 +15,7 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.storage import get_storage_service, validate_upload
 from app.models import (
-    Tenant, Asset, Risk, Policy, WorkInstruction, Control, Finding, CorrectiveAction, Evidence, User, AuditEvent, Role
+    Tenant, Asset, Risk, Policy, WorkInstruction, SecurityAwarenessCampaign, AwarenessAssignment, Control, Finding, CorrectiveAction, Evidence, User, UserGroup, UserGroupMembership, AuditEvent, Role, ApprovalMatrix, ApprovalRecord
 )
 
 main = Blueprint('main', __name__)
@@ -46,9 +48,17 @@ def require_roles(*allowed_roles):
     return decorator
 
 
-def log_audit_event(user, entity_type, entity_id, action, before_value=None, after_value=None):
+def _signature_payload(user, entity_type, entity_id, action, before_value=None, after_value=None):
+    before_text = '' if before_value is None else str(before_value)
+    after_text = '' if after_value is None else str(after_value)
+    stamp = f'{user.id}:{user.tenant_id}:{entity_type}:{entity_id}:{action}:{before_text}:{after_text}:{datetime.utcnow().isoformat()}'
+    return hashlib.sha256(stamp.encode('utf-8')).hexdigest()
+
+
+def log_audit_event(user, entity_type, entity_id, action, before_value=None, after_value=None, signed_change=None):
     if user is None:
         return
+    payload = _signature_payload(user, entity_type, entity_id, action, before_value, after_value)
     event = AuditEvent(
         tenant_id=user.tenant_id,
         user_id=user.id,
@@ -58,6 +68,8 @@ def log_audit_event(user, entity_type, entity_id, action, before_value=None, aft
         before_value=str(before_value) if before_value is not None else None,
         after_value=str(after_value) if after_value is not None else None,
         ip_address=request.remote_addr if request else None,
+        signature_hash=payload,
+        signed_change=signed_change or json.dumps({'before': before_value, 'after': after_value, 'action': action}, default=str),
     )
     db.session.add(event)
     db.session.commit()
@@ -189,6 +201,102 @@ def logout():
     session.pop('pending_mfa_user_id', None)
     logout_user()
     return redirect(url_for('main.dashboard'))
+
+
+# --- Users ---
+@main.route('/users')
+@login_required
+@require_roles('admin', 'security_manager')
+def users_list():
+    users = User.query.filter_by(tenant_id=current_user.tenant_id).order_by(User.full_name.asc()).all()
+    return render_template('users_list.html', users=users)
+
+
+@main.route('/users/new', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def user_new():
+    roles = Role.query.filter_by(tenant_id=current_user.tenant_id).all()
+    if request.method == 'POST':
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        role_id = request.form.get('role_id')
+        is_active = request.form.get('is_active') == '1'
+
+        if not full_name or not email or not password:
+            flash('Name, email, and password are required.')
+            return render_template('user_form.html', roles=roles)
+
+        if User.query.filter_by(email=email).first():
+            flash('A user with that email already exists.')
+            return render_template('user_form.html', roles=roles)
+
+        selected_role = Role.query.filter_by(id=role_id, tenant_id=current_user.tenant_id).first()
+        if not selected_role:
+            selected_role = Role.query.filter_by(tenant_id=current_user.tenant_id, name='user').first()
+
+        user = User(
+            tenant_id=current_user.tenant_id,
+            email=email,
+            full_name=full_name,
+            role_id=selected_role.id if selected_role else 1,
+            is_active=is_active,
+        )
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+
+        log_audit_event(current_user, 'user', user.id, 'created', before_value=None, after_value=user.email)
+        flash('User added successfully.')
+        return redirect(url_for('main.users_list'))
+
+    return render_template('user_form.html', roles=roles)
+
+
+@main.route('/user-groups')
+@login_required
+@require_roles('admin', 'security_manager')
+def user_groups_list():
+    groups = UserGroup.query.filter_by(tenant_id=current_user.tenant_id).order_by(UserGroup.name.asc()).all()
+    return render_template('user_groups_list.html', groups=groups)
+
+
+@main.route('/user-groups/new', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def user_group_new():
+    users = User.query.filter_by(tenant_id=current_user.tenant_id).order_by(User.full_name.asc()).all()
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        member_ids = request.form.getlist('member_ids')
+
+        if not name:
+            flash('Group name is required.')
+            return render_template('user_group_form.html', users=users)
+
+        if UserGroup.query.filter_by(tenant_id=current_user.tenant_id, name=name).first():
+            flash('A group with that name already exists for this tenant.')
+            return render_template('user_group_form.html', users=users)
+
+        group = UserGroup(
+            tenant_id=current_user.tenant_id,
+            name=name,
+            description=description,
+        )
+        db.session.add(group)
+        db.session.flush()
+
+        selected_users = User.query.filter(User.id.in_(member_ids), User.tenant_id == current_user.tenant_id).all()
+        group.users.extend(selected_users)
+        db.session.commit()
+
+        log_audit_event(current_user, 'user_group', group.id, 'created', before_value=None, after_value=group.name)
+        flash('User group created successfully.')
+        return redirect(url_for('main.user_groups_list'))
+
+    return render_template('user_group_form.html', users=users)
 
 
 # --- Assets ---
@@ -355,14 +463,69 @@ def risk_edit(risk_id):
     return render_template('risk_form.html', risk=risk, assets=assets)
 
 
+@main.route('/risks/<int:risk_id>/approve', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def risk_approve(risk_id):
+    risk = Risk.query.filter_by(id=risk_id, tenant_id=current_user.tenant_id).first_or_404()
+    approval_matrix = ApprovalMatrix.query.filter_by(tenant_id=current_user.tenant_id, entity_type='risk', is_active=True).first()
+    if approval_matrix and current_user.role and current_user.role.name != approval_matrix.required_role and current_user.role.name != 'admin':
+        flash(f'Only {approval_matrix.required_role} users can approve this record.')
+        return redirect(url_for('main.risk_detail', risk_id=risk.id))
+
+    if request.method == 'POST':
+        decision = request.form.get('decision', 'approve').lower()
+        reason = request.form.get('reason', '')
+        approved_at = datetime.utcnow()
+        old_status = risk.approval_status
+        old_reason = risk.approval_reason
+        risk.approval_status = 'Approved' if decision == 'approve' else 'Rejected'
+        risk.approval_reason = reason
+        risk.approved_by_user_id = current_user.id
+        risk.approved_at = approved_at
+        risk.signature_hash = hashlib.sha256(f'{risk.id}:{current_user.id}:{decision}:{reason}:{approved_at.isoformat()}'.encode('utf-8')).hexdigest()
+        if decision == 'approve':
+            risk.status = 'Approved'
+            risk.locked_at = approved_at
+        else:
+            risk.locked_at = approved_at
+
+        approval_record = ApprovalRecord(
+            tenant_id=current_user.tenant_id,
+            entity_type='risk',
+            entity_id=risk.id,
+            action='approval',
+            approver_id=current_user.id,
+            reason=reason,
+            decision=decision,
+            signature_hash=risk.signature_hash,
+        )
+        db.session.add(approval_record)
+        db.session.commit()
+        log_audit_event(
+            current_user,
+            'risk',
+            risk.id,
+            'approved' if decision == 'approve' else 'rejected',
+            before_value={'approval_status': old_status, 'approval_reason': old_reason},
+            after_value={'approval_status': risk.approval_status, 'approval_reason': reason, 'signature_hash': risk.signature_hash},
+            signed_change=f'{decision}:{reason}',
+        )
+        flash('Risk approval recorded and signed.')
+        return redirect(url_for('main.risk_detail', risk_id=risk.id))
+
+    return render_template('risk_approval.html', risk=risk)
+
+
 @main.route('/risks/<int:risk_id>/delete', methods=['GET', 'POST'])
 @login_required
 @require_roles('admin')
 def risk_delete(risk_id):
     risk = Risk.query.filter_by(id=risk_id, tenant_id=current_user.tenant_id).first_or_404()
+    risk.signature_hash = hashlib.sha256(f'{risk.id}:{current_user.id}:delete:{datetime.utcnow().isoformat()}'.encode('utf-8')).hexdigest()
     db.session.delete(risk)
     db.session.commit()
-    log_audit_event(current_user, 'risk', risk_id, 'deleted', before_value=risk.title, after_value=None)
+    log_audit_event(current_user, 'risk', risk_id, 'deleted', before_value=risk.title, after_value=None, signed_change='delete')
     flash('Risk deleted successfully.')
     return redirect(url_for('main.risks_list'))
 
@@ -597,6 +760,82 @@ def work_instruction_delete(instruction_id):
     log_audit_event(current_user, 'work_instruction', instruction_id, 'deleted', before_value=instruction.title, after_value=None)
     flash('Work instruction deleted successfully.')
     return redirect(url_for('main.work_instructions_list'))
+
+
+# --- Security Awareness Training ---
+@main.route('/security-awareness')
+@login_required
+def security_awareness_list():
+    if current_user.role and current_user.role.name in {'admin', 'security_manager', 'auditor'}:
+        campaigns = SecurityAwarenessCampaign.query.filter_by(tenant_id=current_user.tenant_id).order_by(SecurityAwarenessCampaign.created_at.desc()).all()
+    else:
+        assignments = AwarenessAssignment.query.filter_by(user_id=current_user.id, tenant_id=current_user.tenant_id).order_by(AwarenessAssignment.assigned_at.desc()).all()
+        campaigns = [assignment.campaign for assignment in assignments]
+    return render_template('security_awareness_list.html', campaigns=campaigns)
+
+
+@main.route('/security-awareness/generate', methods=['POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def generate_monthly_security_awareness():
+    title = request.form.get('title') or f"Security Awareness - {datetime.utcnow().strftime('%B %Y')}"
+    month_label = request.form.get('month_label') or datetime.utcnow().strftime('%B %Y')
+    video_title = request.form.get('video_title') or 'Monthly Security Awareness Briefing'
+    description = request.form.get('description') or 'Monthly security awareness briefing covering phishing, password hygiene, and secure working practices.'
+    video_url = request.form.get('video_url') or 'https://example.com/security-awareness/' + month_label.lower().replace(' ', '-') + '.mp4'
+    due_date = request.form.get('due_date')
+    due_date_obj = datetime.strptime(due_date, '%Y-%m-%d') if due_date else datetime.utcnow() + timedelta(days=30)
+
+    campaign = SecurityAwarenessCampaign(
+        tenant_id=current_user.tenant_id,
+        title=title,
+        month_label=month_label,
+        video_title=video_title,
+        description=description,
+        video_url=video_url,
+        status='Scheduled',
+        due_date=due_date_obj,
+        created_by_user_id=current_user.id,
+    )
+    db.session.add(campaign)
+    db.session.commit()
+
+    for user in User.query.filter_by(tenant_id=current_user.tenant_id, is_active=True).all():
+        assignment = AwarenessAssignment(
+            tenant_id=current_user.tenant_id,
+            campaign_id=campaign.id,
+            user_id=user.id,
+            status='Assigned',
+            assigned_at=datetime.utcnow(),
+            sent_at=datetime.utcnow(),
+        )
+        db.session.add(assignment)
+
+    db.session.commit()
+    log_audit_event(current_user, 'security_awareness_campaign', campaign.id, 'generated', before_value=None, after_value=title)
+    flash('Monthly security awareness campaign generated and assigned to users.')
+    return redirect(url_for('main.security_awareness_list'))
+
+
+@main.route('/security-awareness/<int:campaign_id>/complete', methods=['POST'])
+@login_required
+def complete_security_awareness(campaign_id):
+    assignment = AwarenessAssignment.query.filter_by(id=campaign_id, user_id=current_user.id).first_or_404()
+    assignment.status = 'Completed'
+    assignment.watched_at = datetime.utcnow()
+    assignment.completion_score = 100
+    db.session.commit()
+    log_audit_event(current_user, 'security_awareness_assignment', assignment.id, 'completed', before_value='Assigned', after_value='Completed')
+    flash('Security awareness video marked as complete.')
+    return redirect(url_for('main.security_awareness_list'))
+
+
+@main.route('/security-awareness/new', methods=['GET'])
+@login_required
+@require_roles('admin', 'security_manager')
+def security_awareness_new():
+    default_month = datetime.utcnow().strftime('%B %Y')
+    return render_template('security_awareness_form.html', default_month=default_month)
 
 
 # --- Controls ---
@@ -1018,14 +1257,47 @@ def export_risks_csv():
 @require_roles('admin', 'security_manager', 'auditor')
 def export_audit_log_csv():
     events = AuditEvent.query.filter_by(tenant_id=current_user.tenant_id).order_by(AuditEvent.created_at.desc()).all()
+    approvals = ApprovalRecord.query.filter_by(tenant_id=current_user.tenant_id).order_by(ApprovalRecord.approved_at.desc()).all()
     csv_buffer = StringIO()
     writer = csv.writer(csv_buffer)
-    writer.writerow(['id', 'entity_type', 'entity_id', 'action', 'user_id', 'created_at'])
+    writer.writerow(['source', 'id', 'entity_type', 'entity_id', 'action', 'user_id', 'created_at', 'before_value', 'after_value', 'signature_hash', 'signed_change', 'ip_address', 'decision'])
+
     for item in events:
-        writer.writerow([item.id, item.entity_type, item.entity_id, item.action, item.user_id, item.created_at])
+        writer.writerow([
+            'audit_event',
+            item.id,
+            item.entity_type,
+            item.entity_id,
+            item.action,
+            item.user_id,
+            item.created_at,
+            item.before_value,
+            item.after_value,
+            item.signature_hash,
+            item.signed_change,
+            item.ip_address,
+            '',
+        ])
+
+    for item in approvals:
+        writer.writerow([
+            'approval_record',
+            item.id,
+            item.entity_type,
+            item.entity_id,
+            item.action,
+            item.approver_id,
+            item.approved_at,
+            '',
+            item.reason,
+            item.signature_hash,
+            item.reason,
+            '',
+            item.decision,
+        ])
 
     output = csv_buffer.getvalue().encode('utf-8')
-    log_audit_event(current_user, 'report', None, 'exported_audit_log_csv')
+    log_audit_event(current_user, 'report', None, 'exported_audit_log_csv', before_value='Audit export request', after_value='CSV generated', signed_change='audit_export')
     return send_file(
         __import__('io').BytesIO(output),
         mimetype='text/csv',

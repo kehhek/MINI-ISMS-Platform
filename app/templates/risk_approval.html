@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Approve Risk - Invaryant ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="card app-panel p-4">
+    <h2>Risk approval</h2>
+    <p class="text-muted">Record an approval decision for this critical record to satisfy controlled sign-off requirements.</p>
+
+    <div class="mb-4">
+        <h5>{{ risk.title }}</h5>
+        <p class="mb-0">Status: <strong>{{ risk.status }}</strong></p>
+        <p class="mb-0">Owner: <strong>{{ risk.owner or 'Unassigned' }}</strong></p>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
+
+        <div class="mb-3">
+            <label for="decision" class="form-label">Decision</label>
+            <select id="decision" name="decision" class="form-select" required>
+                <option value="approve">Approve</option>
+                <option value="reject">Reject</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="reason" class="form-label">Reason</label>
+            <textarea id="reason" name="reason" class="form-control" rows="5" placeholder="Describe the approval rationale or concerns." required></textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Submit approval</button>
+            <a href="/risks/{{ risk.id }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

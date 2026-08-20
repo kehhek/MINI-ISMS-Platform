@@ -18,6 +18,8 @@ class Tenant(db.Model):
     risks = db.relationship('Risk', backref='tenant', lazy=True)
     policies = db.relationship('Policy', backref='tenant', lazy=True)
     work_instructions = db.relationship('WorkInstruction', backref='tenant', lazy=True)
+    security_awareness_campaigns = db.relationship('SecurityAwarenessCampaign', backref='tenant', lazy=True)
+    awareness_assignments = db.relationship('AwarenessAssignment', backref='tenant', lazy=True)
     controls = db.relationship('Control', backref='tenant', lazy=True)
     findings = db.relationship('Finding', backref='tenant', lazy=True)
     evidence = db.relationship('Evidence', backref='tenant', lazy=True)
@@ -67,6 +69,36 @@ class User(UserMixin, db.Model):
         return f'<User {self.email}>'
 
 
+class UserGroup(db.Model):
+    __tablename__ = 'user_groups'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    users = db.relationship(
+        'User',
+        secondary='user_group_memberships',
+        backref=db.backref('groups', lazy='dynamic'),
+        lazy='dynamic',
+    )
+
+    def __repr__(self):
+        return f'<UserGroup {self.name}>'
+
+
+class UserGroupMembership(db.Model):
+    __tablename__ = 'user_group_memberships'
+
+    user_group_id = db.Column(db.Integer, db.ForeignKey('user_groups.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+
+    def __repr__(self):
+        return f'<UserGroupMembership {self.user_group_id}:{self.user_id}>'
+
+
 class Asset(db.Model):
     __tablename__ = 'assets'
 
@@ -99,6 +131,12 @@ class Risk(db.Model):
     impact = db.Column(db.Integer)
     status = db.Column(db.String(50), default='Open')
     owner = db.Column(db.String(100))
+    approval_status = db.Column(db.String(50), default='Pending')
+    approved_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    approval_reason = db.Column(db.Text, nullable=True)
+    signature_hash = db.Column(db.String(128), nullable=True)
+    locked_at = db.Column(db.DateTime, nullable=True)
     identified_date = db.Column(db.DateTime, default=datetime.utcnow)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
@@ -155,6 +193,47 @@ class WorkInstruction(db.Model):
 
     def __repr__(self):
         return f'<WorkInstruction {self.title}>'
+
+
+class SecurityAwarenessCampaign(db.Model):
+    __tablename__ = 'security_awareness_campaigns'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)
+    title = db.Column(db.String(200), nullable=False)
+    month_label = db.Column(db.String(50), nullable=False)
+    video_title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    video_url = db.Column(db.String(500), nullable=True)
+    status = db.Column(db.String(50), default='Scheduled')
+    due_date = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    assignments = db.relationship('AwarenessAssignment', backref='campaign', lazy=True)
+
+    def __repr__(self):
+        return f'<SecurityAwarenessCampaign {self.title}>'
+
+
+class AwarenessAssignment(db.Model):
+    __tablename__ = 'awareness_assignments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('security_awareness_campaigns.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.String(50), default='Assigned')
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    watched_at = db.Column(db.DateTime, nullable=True)
+    completion_score = db.Column(db.Integer, default=0)
+    notes = db.Column(db.Text, nullable=True)
+
+    user = db.relationship('User', backref='awareness_assignments')
+
+    def __repr__(self):
+        return f'<AwarenessAssignment {self.user_id}:{self.campaign_id}>'
 
 
 class Control(db.Model):
@@ -248,6 +327,40 @@ class Evidence(db.Model):
         return f'<Evidence {self.title}>'
 
 
+class ApprovalMatrix(db.Model):
+    __tablename__ = 'approval_matrix'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)
+    entity_type = db.Column(db.String(80), nullable=False)
+    required_role = db.Column(db.String(80), nullable=False, default='security_manager')
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<ApprovalMatrix {self.entity_type}:{self.required_role}>'
+
+
+class ApprovalRecord(db.Model):
+    __tablename__ = 'approval_records'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)
+    entity_type = db.Column(db.String(80), nullable=False)
+    entity_id = db.Column(db.Integer, nullable=False)
+    action = db.Column(db.String(50), nullable=False)
+    approver_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    reason = db.Column(db.Text, nullable=True)
+    decision = db.Column(db.String(50), nullable=False, default='approve')
+    signature_hash = db.Column(db.String(128), nullable=True)
+    approved_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    approver = db.relationship('User', backref='approval_records')
+
+    def __repr__(self):
+        return f'<ApprovalRecord {self.entity_type}:{self.entity_id}>'
+
+
 class AuditEvent(db.Model):
     __tablename__ = 'audit_events'
 
@@ -260,6 +373,8 @@ class AuditEvent(db.Model):
     before_value = db.Column(db.Text, nullable=True)
     after_value = db.Column(db.Text, nullable=True)
     ip_address = db.Column(db.String(64), nullable=True)
+    signature_hash = db.Column(db.String(128), nullable=True)
+    signed_change = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='audit_events')

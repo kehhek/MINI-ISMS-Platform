@@ -3,7 +3,7 @@ import unittest
 from io import BytesIO
 
 from app import create_app, db
-from app.models import Asset, Control, Evidence, Policy, Risk, User, WorkInstruction
+from app.models import Asset, ApprovalMatrix, ApprovalRecord, Control, Evidence, Policy, Risk, User, UserGroup, WorkInstruction
 
 
 class AdminSetupFlowTest(unittest.TestCase):
@@ -137,6 +137,41 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertEqual(instruction.owner, 'IT Support')
         self.assertIn('Reset credential', instruction.steps)
 
+    def test_admin_can_create_a_new_user(self):
+        self.login_admin()
+
+        token = self.get_csrf_token()
+        response = self.client.post('/users/new', data={
+            'full_name': 'Jane Analyst',
+            'email': 'jane@example.com',
+            'password': 'StrongPass456!',
+            'role_id': '4',
+            'is_active': '1',
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        user = User.query.filter_by(email='jane@example.com').first()
+        self.assertIsNotNone(user)
+        self.assertEqual(user.full_name, 'Jane Analyst')
+        self.assertTrue(user.check_password('StrongPass456!'))
+        self.assertEqual(user.role.name, 'user')
+
+    def test_admin_can_create_a_user_group(self):
+        self.login_admin()
+
+        token = self.get_csrf_token()
+        response = self.client.post('/user-groups/new', data={
+            'name': 'Operations Team',
+            'description': 'Core operational support team',
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        group = UserGroup.query.filter_by(name='Operations Team').first()
+        self.assertIsNotNone(group)
+        self.assertEqual(group.tenant_id, 1)
+
     def test_risk_crud_routes_work(self):
         self.login_admin()
 
@@ -178,6 +213,58 @@ class AdminSetupFlowTest(unittest.TestCase):
         delete_response = self.client.post(f'/risks/{risk.id}/delete', data={'csrf_token': token}, follow_redirects=False)
         self.assertEqual(delete_response.status_code, 302)
         self.assertIsNone(Risk.query.get(risk.id))
+
+    def test_critical_record_can_be_approved_and_locked(self):
+        self.login_admin()
+
+        risk = Risk(tenant_id=1, title='Critical access control risk', description='MFA issue', likelihood=5, impact=5, owner='Security Team', status='Open')
+        db.session.add(risk)
+        db.session.commit()
+
+        token = self.get_csrf_token()
+        response = self.client.post(f'/risks/{risk.id}/approve', data={
+            'decision': 'approve',
+            'reason': 'Risk accepted after control remediation',
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        db.session.expire_all()
+        self.assertEqual(Risk.query.get(risk.id).approval_status, 'Approved')
+        self.assertIsNotNone(Risk.query.get(risk.id).locked_at)
+        self.assertEqual(ApprovalRecord.query.filter_by(entity_type='risk', entity_id=risk.id).count(), 1)
+
+    def test_audit_export_includes_signed_history_and_hashes(self):
+        self.login_admin()
+
+        risk = Risk(tenant_id=1, title='Signed export risk', description='Needs approval', likelihood=4, impact=5, owner='Security Team', status='Open')
+        db.session.add(risk)
+        db.session.commit()
+
+        approval = ApprovalRecord(
+            tenant_id=1,
+            entity_type='risk',
+            entity_id=risk.id,
+            action='approved',
+            approver_id=1,
+            reason='Reviewed by security team',
+            signature_hash='test-signature-hash',
+        )
+        db.session.add(approval)
+        db.session.commit()
+
+        response = self.client.get('/reports/audit-log.csv')
+        self.assertEqual(response.status_code, 200)
+        content = response.get_data(as_text=True)
+        self.assertIn('signature_hash', content)
+        self.assertIn('signed_change', content)
+        self.assertIn('test-signature-hash', content)
+
+    def test_approval_matrix_is_seeded_for_role_based_signoff(self):
+        self.login_admin()
+        matrix = ApprovalMatrix.query.filter_by(entity_type='risk').first()
+        self.assertIsNotNone(matrix)
+        self.assertIn(matrix.required_role, ['admin', 'security_manager'])
 
     def test_asset_control_and_evidence_crud_routes_work(self):
         self.login_admin()

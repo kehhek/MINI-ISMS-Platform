@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from sqlalchemy import text
 from dotenv import load_dotenv
 import os
+from datetime import datetime
 
 load_dotenv()
 
@@ -22,9 +23,11 @@ def add_missing_columns_for_legacy_db():
         'roles': ['tenant_id'],
         'users': ['tenant_id', 'role_id', 'is_active', 'mfa_enabled', 'mfa_secret', 'last_login_at'],
         'assets': ['tenant_id', 'created_by_user_id'],
-        'risks': ['tenant_id', 'created_by_user_id'],
+        'risks': ['tenant_id', 'created_by_user_id', 'approval_status', 'approved_by_user_id', 'approved_at', 'approval_reason', 'signature_hash', 'locked_at'],
         'policies': ['tenant_id', 'created_by_user_id', 'document_filename', 'document_path', 'mime_type', 'file_size'],
         'work_instructions': ['tenant_id', 'created_by_user_id', 'review_date', 'steps', 'document_filename', 'document_path', 'mime_type', 'file_size'],
+        'security_awareness_campaigns': ['tenant_id', 'created_by_user_id', 'title', 'month_label', 'video_title', 'description', 'video_url', 'status', 'due_date'],
+        'awareness_assignments': ['tenant_id', 'campaign_id', 'user_id', 'status', 'assigned_at', 'sent_at', 'watched_at', 'completion_score', 'notes'],
         'controls': ['tenant_id', 'created_by_user_id'],
         'findings': ['tenant_id', 'created_by_user_id'],
         'corrective_actions': ['tenant_id', 'created_by_user_id'],
@@ -32,7 +35,9 @@ def add_missing_columns_for_legacy_db():
             'tenant_id', 'uploaded_by_user_id', 'file_hash', 'file_size', 'mime_type',
             'retention_policy', 'archived_at', 'deleted_at', 'storage_provider', 'control_id', 'finding_id'
         ],
-        'audit_events': ['tenant_id', 'user_id'],
+        'audit_events': ['tenant_id', 'user_id', 'signature_hash', 'signed_change'],
+        'approval_matrix': ['tenant_id', 'entity_type', 'required_role', 'is_active'],
+        'approval_records': ['tenant_id', 'entity_type', 'entity_id', 'action', 'approver_id', 'reason', 'decision', 'signature_hash', 'approved_at'],
     }
 
     for table_name, expected_columns in table_columns.items():
@@ -82,6 +87,29 @@ def seed_default_data():
     ]:
         if not Role.query.filter_by(tenant_id=tenant.id, name=role_name).first():
             db.session.add(Role(tenant_id=tenant.id, name=role_name, description=description))
+    db.session.commit()
+
+    approval_matrix_table = db.inspect(db.engine).has_table('approval_matrix')
+    if approval_matrix_table:
+        for entity_type, required_role in [
+            ('risk', 'security_manager'),
+            ('policy', 'admin'),
+            ('finding', 'security_manager'),
+        ]:
+            existing = db.session.execute(
+                text('SELECT 1 FROM approval_matrix WHERE tenant_id = :tenant_id AND entity_type = :entity_type LIMIT 1'),
+                {'tenant_id': tenant.id, 'entity_type': entity_type},
+            ).fetchone()
+            if not existing:
+                db.session.execute(
+                    text('INSERT INTO approval_matrix (tenant_id, entity_type, required_role, is_active, created_at) VALUES (:tenant_id, :entity_type, :required_role, 1, :created_at)'),
+                    {
+                        'tenant_id': tenant.id,
+                        'entity_type': entity_type,
+                        'required_role': required_role,
+                        'created_at': datetime.utcnow(),
+                    },
+                )
     db.session.commit()
 
     default_admin_email = os.getenv('ADMIN_EMAIL')

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Users - Invaryant ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Access</p>
+        <h2 class="mb-0">Users</h2>
+    </div>
+    <a href="/users/new" class="btn btn-primary">Add user</a>
+</div>
+
+{% if users %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.full_name }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.role.name if user.role else 'Unknown' }}</td>
+                <td>
+                    {% if user.is_active %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <h5 class="mb-2">No users yet</h5>
+    <p class="mb-0">Create the first user for this tenant.</p>
+</div>
+{% endif %}
+{% endblock %}
