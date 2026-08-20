@@ -20,7 +20,7 @@ def add_missing_columns_for_legacy_db():
     table_columns = {
         'tenants': [],
         'roles': ['tenant_id'],
-        'users': ['tenant_id', 'role_id', 'is_active', 'last_login_at'],
+        'users': ['tenant_id', 'role_id', 'is_active', 'mfa_enabled', 'mfa_secret', 'last_login_at'],
         'assets': ['tenant_id', 'created_by_user_id'],
         'risks': ['tenant_id', 'created_by_user_id'],
         'policies': ['tenant_id', 'created_by_user_id'],
@@ -47,10 +47,12 @@ def add_missing_columns_for_legacy_db():
                 db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} INTEGER DEFAULT 1'))
             elif column_name in {'file_size'}:
                 db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} INTEGER DEFAULT 0'))
-            elif column_name in {'is_active'}:
-                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} BOOLEAN DEFAULT 1'))
+            elif column_name in {'is_active', 'mfa_enabled'}:
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} BOOLEAN DEFAULT 0'))
             elif column_name in {'last_login_at', 'archived_at', 'deleted_at'}:
                 db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} DATETIME'))
+            elif column_name in {'mfa_secret'}:
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} VARCHAR(64)'))
             else:
                 db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} TEXT'))
     db.session.commit()
