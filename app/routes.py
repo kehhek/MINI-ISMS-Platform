@@ -5,7 +5,8 @@ import csv
 import os
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file
+import pyotp
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file, session
 from flask_login import login_required, login_user, logout_user, current_user
 from werkzeug.utils import secure_filename
 
@@ -107,6 +108,12 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
+            if user.mfa_enabled and user.mfa_secret:
+                session['pending_mfa_user_id'] = user.id
+                FAILED_LOGIN_ATTEMPTS.pop(request.remote_addr, None)
+                flash('Multi-factor authentication required.')
+                return redirect(url_for('main.mfa_verify'))
+
             FAILED_LOGIN_ATTEMPTS.pop(request.remote_addr, None)
             login_user(user)
             user.last_login_at = datetime.utcnow()
@@ -122,10 +129,64 @@ def login():
     return render_template('login.html', locked_out=False)
 
 
+@main.route('/mfa/verify', methods=['GET', 'POST'])
+def mfa_verify():
+    user_id = session.get('pending_mfa_user_id')
+    user = User.query.get(user_id) if user_id else None
+    if not user or not user.mfa_enabled or not user.mfa_secret:
+        session.pop('pending_mfa_user_id', None)
+        return redirect(url_for('main.login'))
+
+    if request.method == 'POST':
+        code = request.form.get('code', '').strip()
+        totp = pyotp.TOTP(user.mfa_secret)
+        if totp.verify(code, valid_window=1):
+            session.pop('pending_mfa_user_id', None)
+            login_user(user)
+            user.last_login_at = datetime.utcnow()
+            db.session.commit()
+            log_audit_event(user, 'user', user.id, 'login_mfa')
+            flash('Welcome back.')
+            return redirect(url_for('main.dashboard'))
+        flash('Invalid MFA code.')
+
+    return render_template('mfa_verify.html', user=user)
+
+
+@main.route('/settings/mfa', methods=['GET', 'POST'])
+@login_required
+def mfa_setup():
+    if request.method == 'POST':
+        if not current_user.mfa_secret:
+            current_user.mfa_secret = pyotp.random_base32()
+        if request.form.get('enable') == '1':
+            current_user.mfa_enabled = True
+            db.session.commit()
+            flash('Multi-factor authentication enabled.')
+        elif request.form.get('disable') == '1':
+            current_user.mfa_enabled = False
+            current_user.mfa_secret = None
+            db.session.commit()
+            flash('Multi-factor authentication disabled.')
+        return redirect(url_for('main.dashboard'))
+
+    secret = current_user.mfa_secret or pyotp.random_base32()
+    if not current_user.mfa_secret:
+        current_user.mfa_secret = secret
+        db.session.commit()
+
+    otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=current_user.email,
+        issuer_name='Mini ISMS Platform',
+    )
+    return render_template('mfa_setup.html', secret=secret, otp_uri=otp_uri, enabled=current_user.mfa_enabled)
+
+
 @main.route('/logout')
 @login_required
 def logout():
     log_audit_event(current_user, 'user', current_user.id, 'logout')
+    session.pop('pending_mfa_user_id', None)
     logout_user()
     return redirect(url_for('main.dashboard'))
 

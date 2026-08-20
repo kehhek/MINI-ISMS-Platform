@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}MFA Setup - Mini ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-body p-4">
+                <h2 class="mb-3">Multi-factor authentication</h2>
+                <p class="text-muted">Use an authenticator app such as Google Authenticator or Microsoft Authenticator.</p>
+
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        <div class="flash-message mb-3">
+                            {% for message in messages %}
+                                <div>{{ message }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <div class="mb-3">
+                    <label class="form-label">Secret</label>
+                    <input type="text" class="form-control" value="{{ secret }}" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Setup URI</label>
+                    <input type="text" class="form-control" value="{{ otp_uri }}" readonly>
+                </div>
+
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
+                    {% if enabled %}
+                        <input type="hidden" name="disable" value="1">
+                        <button type="submit" class="btn btn-outline-danger">Disable MFA</button>
+                    {% else %}
+                        <input type="hidden" name="enable" value="1">
+                        <button type="submit" class="btn btn-primary">Enable MFA</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

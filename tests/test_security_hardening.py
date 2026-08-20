@@ -1,11 +1,16 @@
 import os
 import unittest
 
-from app import create_app
+import pyotp
+
+from app import create_app, db
+from app.models import User
+from app.routes import FAILED_LOGIN_ATTEMPTS
 
 
 class SecurityHardeningTest(unittest.TestCase):
     def setUp(self):
+        FAILED_LOGIN_ATTEMPTS.clear()
         os.environ['SECRET_KEY'] = 'test-secret'
         os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
         os.environ['ADMIN_EMAIL'] = 'admin@example.com'
@@ -16,6 +21,7 @@ class SecurityHardeningTest(unittest.TestCase):
         self.client = self.app.test_client()
 
     def tearDown(self):
+        FAILED_LOGIN_ATTEMPTS.clear()
         self.app_context.pop()
 
     def get_csrf_token(self):
@@ -59,6 +65,29 @@ class SecurityHardeningTest(unittest.TestCase):
         self.assertIn('X-Frame-Options', response.headers)
         self.assertIn('X-Content-Type-Options', response.headers)
         self.assertEqual(response.headers['X-Frame-Options'], 'DENY')
+
+    def test_login_requires_mfa_when_enabled(self):
+        user = User.query.filter_by(email='admin@example.com').first()
+        user.mfa_enabled = True
+        user.mfa_secret = pyotp.random_base32()
+        db.session.commit()
+
+        token = self.get_csrf_token()
+        response = self.client.post('/login', data={
+            'email': 'admin@example.com',
+            'password': 'StrongPass123!',
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], '/mfa/verify')
+
+        verify_response = self.client.post('/mfa/verify', data={
+            'code': pyotp.TOTP(user.mfa_secret).now(),
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(verify_response.status_code, 302)
 
 
 if __name__ == '__main__':
