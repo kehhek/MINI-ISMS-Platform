@@ -3,7 +3,11 @@ import unittest
 from io import BytesIO
 
 from app import create_app, db
-from app.models import Asset, ApprovalMatrix, ApprovalRecord, Control, CorrectiveAction, Evidence, Finding, Policy, Risk, User, UserGroup, WorkInstruction
+from app.models import (
+    Asset, ApprovalMatrix, ApprovalRecord, AwarenessAssignment, Control, CorrectiveAction,
+    Evidence, Finding, Policy, Risk, SecurityAwarenessCampaign, User, UserGroup,
+    WorkInstruction,
+)
 
 
 class AdminSetupFlowTest(unittest.TestCase):
@@ -218,28 +222,239 @@ class AdminSetupFlowTest(unittest.TestCase):
     def test_evidence_image_preview_route_works(self):
         self.login_admin()
 
-        evidence = Evidence(
-            tenant_id=1,
-            title='Access Control Screenshot',
-            filename='access-control.png',
-            file_path='/tmp/access-control.png',
-            description='Screenshot of access control settings',
-            uploaded_by='Operations',
-            uploaded_by_user_id=1,
-            storage_provider='local',
-            file_size=100,
-            file_hash='abc',
-            mime_type='image/png',
-        )
-        db.session.add(evidence)
-        db.session.commit()
+        token = self.get_csrf_token()
+        upload_response = self.client.post('/evidence/new', data={
+            'title': 'Access Control Screenshot',
+            'description': 'Screenshot of access control settings',
+            'uploaded_by': 'Operations',
+            'file': (BytesIO(b'\x89PNG\r\n\x1a\n' + b'1234567890'), 'access-control.png'),
+            'csrf_token': token,
+        }, content_type='multipart/form-data', follow_redirects=False)
+        self.assertEqual(upload_response.status_code, 302)
+
+        evidence = Evidence.query.filter_by(title='Access Control Screenshot').first()
+        self.assertIsNotNone(evidence)
+        self.assertTrue(evidence.file_path)
+        self.assertTrue(os.path.exists(evidence.file_path))
 
         detail_response = self.client.get(f'/evidence/{evidence.id}')
         self.assertEqual(detail_response.status_code, 200)
         self.assertIn('/evidence/%d/file' % evidence.id, detail_response.get_data(as_text=True))
 
         preview_response = self.client.get(f'/evidence/{evidence.id}/file')
-        self.assertEqual(preview_response.status_code, 404)
+        self.assertEqual(preview_response.status_code, 200)
+        self.assertEqual(preview_response.mimetype, 'image/png')
+
+    def test_security_awareness_page_includes_training_record_table(self):
+        self.login_admin()
+
+        campaign = SecurityAwarenessCampaign(
+            tenant_id=1,
+            title='Security Awareness - August 2026',
+            month_label='August 2026',
+            video_title='Monthly security awareness briefing',
+            description='Best practices for phishing and secure remote access.',
+            video_url='https://example.com/training',
+            status='Scheduled',
+            created_by_user_id=1,
+        )
+        db.session.add(campaign)
+        db.session.commit()
+
+        assignment = AwarenessAssignment(
+            tenant_id=1,
+            campaign_id=campaign.id,
+            user_id=User.query.filter_by(email='admin@example.com').first().id,
+            status='Completed',
+            assigned_at=__import__('datetime').datetime.utcnow(),
+            watched_at=__import__('datetime').datetime.utcnow(),
+            completion_score=100,
+            notes='Completed phishing awareness training',
+        )
+        db.session.add(assignment)
+        db.session.commit()
+
+        awareness_response = self.client.get('/security-awareness')
+        self.assertEqual(awareness_response.status_code, 200)
+        page_html = awareness_response.get_data(as_text=True)
+        self.assertIn('Training Record', page_html)
+        self.assertIn('Monthly security awareness briefing', page_html)
+        self.assertIn('Completed', page_html)
+
+    def test_security_awareness_page_shows_watched_pending_and_in_progress(self):
+        self.login_admin()
+
+        campaign = SecurityAwarenessCampaign(
+            tenant_id=1,
+            title='Security Awareness - September 2026',
+            month_label='September 2026',
+            video_title='September phishing awareness briefing',
+            description='Training on phishing, secure logins, and email hygiene.',
+            video_url='https://example.com/september-training',
+            status='Scheduled',
+            created_by_user_id=1,
+        )
+        db.session.add(campaign)
+        db.session.commit()
+
+        watched_user = User.query.filter_by(email='admin@example.com').first()
+        pending_user = User(
+            tenant_id=1,
+            full_name='Pending User',
+            email='pending@example.com',
+            password_hash='not-used',
+            role_id=User.query.filter_by(email='admin@example.com').first().role_id,
+            is_active=True,
+        )
+        pending_user.set_password('StrongPass123!')
+        db.session.add(pending_user)
+        db.session.flush()
+
+        in_progress_user = User(
+            tenant_id=1,
+            full_name='In Progress User',
+            email='inprogress@example.com',
+            password_hash='not-used',
+            role_id=User.query.filter_by(email='admin@example.com').first().role_id,
+            is_active=True,
+        )
+        in_progress_user.set_password('StrongPass123!')
+        db.session.add(in_progress_user)
+        db.session.flush()
+
+        db.session.add_all([
+            AwarenessAssignment(
+                tenant_id=1,
+                campaign_id=campaign.id,
+                user_id=watched_user.id,
+                status='Completed',
+                assigned_at=__import__('datetime').datetime.utcnow(),
+                watched_at=__import__('datetime').datetime.utcnow(),
+                completion_score=100,
+                notes='Watched the video',
+            ),
+            AwarenessAssignment(
+                tenant_id=1,
+                campaign_id=campaign.id,
+                user_id=pending_user.id,
+                status='Assigned',
+                assigned_at=__import__('datetime').datetime.utcnow(),
+            ),
+            AwarenessAssignment(
+                tenant_id=1,
+                campaign_id=campaign.id,
+                user_id=in_progress_user.id,
+                status='In Progress',
+                assigned_at=__import__('datetime').datetime.utcnow(),
+            ),
+        ])
+        db.session.commit()
+
+        awareness_response = self.client.get('/security-awareness')
+        self.assertEqual(awareness_response.status_code, 200)
+        page_html = awareness_response.get_data(as_text=True)
+        self.assertIn('Watched', page_html)
+        self.assertIn('Pending', page_html)
+        self.assertIn('In Progress', page_html)
+
+    def test_security_awareness_page_shows_group_status_breakdown(self):
+        self.login_admin()
+
+        campaign = SecurityAwarenessCampaign(
+            tenant_id=1,
+            title='Security Awareness - October 2026',
+            month_label='October 2026',
+            video_title='October security briefing',
+            description='Training updates for the month.',
+            video_url='https://example.com/october-training',
+            status='Scheduled',
+            created_by_user_id=1,
+        )
+        db.session.add(campaign)
+        db.session.commit()
+
+        admin_user = User.query.filter_by(email='admin@example.com').first()
+        watched_user = User(
+            tenant_id=1,
+            full_name='Watched Group User',
+            email='watched-group@example.com',
+            password_hash='not-used',
+            role_id=admin_user.role_id,
+            is_active=True,
+        )
+        watched_user.set_password('StrongPass123!')
+        pending_user = User(
+            tenant_id=1,
+            full_name='Pending Group User',
+            email='pending-group@example.com',
+            password_hash='not-used',
+            role_id=admin_user.role_id,
+            is_active=True,
+        )
+        pending_user.set_password('StrongPass123!')
+        in_progress_user = User(
+            tenant_id=1,
+            full_name='In Progress Group User',
+            email='inprogress-group@example.com',
+            password_hash='not-used',
+            role_id=admin_user.role_id,
+            is_active=True,
+        )
+        in_progress_user.set_password('StrongPass123!')
+        db.session.add_all([watched_user, pending_user, in_progress_user])
+        db.session.flush()
+
+        group = UserGroup(tenant_id=1, name='Security Operations', description='Security team training group')
+        db.session.add(group)
+        db.session.flush()
+        group.users.extend([admin_user, watched_user, pending_user, in_progress_user])
+
+        db.session.add_all([
+            AwarenessAssignment(
+                tenant_id=1,
+                campaign_id=campaign.id,
+                user_id=admin_user.id,
+                status='Completed',
+                assigned_at=__import__('datetime').datetime.utcnow(),
+                watched_at=__import__('datetime').datetime.utcnow(),
+                completion_score=100,
+                notes='Watched',
+            ),
+            AwarenessAssignment(
+                tenant_id=1,
+                campaign_id=campaign.id,
+                user_id=watched_user.id,
+                status='Completed',
+                assigned_at=__import__('datetime').datetime.utcnow(),
+                watched_at=__import__('datetime').datetime.utcnow(),
+                completion_score=100,
+                notes='Watched',
+            ),
+            AwarenessAssignment(
+                tenant_id=1,
+                campaign_id=campaign.id,
+                user_id=pending_user.id,
+                status='Assigned',
+                assigned_at=__import__('datetime').datetime.utcnow(),
+            ),
+            AwarenessAssignment(
+                tenant_id=1,
+                campaign_id=campaign.id,
+                user_id=in_progress_user.id,
+                status='In Progress',
+                assigned_at=__import__('datetime').datetime.utcnow(),
+            ),
+        ])
+        db.session.commit()
+
+        awareness_response = self.client.get('/security-awareness')
+        self.assertEqual(awareness_response.status_code, 200)
+        page_html = awareness_response.get_data(as_text=True)
+        self.assertIn('User Group Status', page_html)
+        self.assertIn('Security Operations', page_html)
+        self.assertIn('Watched', page_html)
+        self.assertIn('Pending', page_html)
+        self.assertIn('In Progress', page_html)
 
     def test_dashboard_lists_overdue_actions(self):
         self.login_admin()

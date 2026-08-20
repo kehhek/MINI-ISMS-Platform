@@ -58,8 +58,13 @@ class StorageService:
     @property
     def upload_root(self):
         if self.app is None:
-            return os.getenv('UPLOAD_FOLDER', str(Path(__file__).resolve().parent.parent / 'instance' / 'uploads'))
-        return self.app.config.get('UPLOAD_FOLDER', str(Path(__file__).resolve().parent.parent / 'instance' / 'uploads'))
+            configured = os.getenv('UPLOAD_FOLDER', str(Path(__file__).resolve().parent.parent / 'instance' / 'uploads'))
+        else:
+            configured = self.app.config.get('UPLOAD_FOLDER', str(Path(__file__).resolve().parent.parent / 'instance' / 'uploads'))
+
+        if not os.path.isabs(configured):
+            configured = str((Path(__file__).resolve().parent.parent / configured).resolve())
+        return configured
 
     @property
     def bucket_name(self):

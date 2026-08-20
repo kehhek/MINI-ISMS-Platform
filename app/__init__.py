@@ -150,7 +150,12 @@ def create_app():
     if not app.config['SECRET_KEY']:
         raise RuntimeError('SECRET_KEY environment variable is required. Set it before starting the app.')
     app.config['ENV'] = 'production' if os.getenv('APP_ENV') == 'production' else 'development'
-    app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', os.path.join(app.instance_path, 'uploads'))
+
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+    configured_upload_folder = os.getenv('UPLOAD_FOLDER', os.path.join(project_root, 'instance', 'uploads'))
+    if not os.path.isabs(configured_upload_folder):
+        configured_upload_folder = os.path.abspath(os.path.join(project_root, configured_upload_folder))
+    app.config['UPLOAD_FOLDER'] = configured_upload_folder
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
     app.config['ALLOWED_UPLOAD_EXTENSIONS'] = {'.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'}
     app.config['SESSION_COOKIE_HTTPONLY'] = True

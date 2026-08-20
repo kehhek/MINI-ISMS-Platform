@@ -787,10 +787,38 @@ def work_instruction_delete(instruction_id):
 def security_awareness_list():
     if current_user.role and current_user.role.name in {'admin', 'security_manager', 'auditor'}:
         campaigns = SecurityAwarenessCampaign.query.filter_by(tenant_id=current_user.tenant_id).order_by(SecurityAwarenessCampaign.created_at.desc()).all()
+        assignments = AwarenessAssignment.query.filter_by(tenant_id=current_user.tenant_id).order_by(AwarenessAssignment.assigned_at.desc()).all()
+        all_groups = UserGroup.query.filter_by(tenant_id=current_user.tenant_id).order_by(UserGroup.name.asc()).all()
     else:
         assignments = AwarenessAssignment.query.filter_by(user_id=current_user.id, tenant_id=current_user.tenant_id).order_by(AwarenessAssignment.assigned_at.desc()).all()
         campaigns = [assignment.campaign for assignment in assignments]
-    return render_template('security_awareness_list.html', campaigns=campaigns)
+        all_groups = current_user.groups.order_by(UserGroup.name.asc()).all() if hasattr(current_user.groups, 'order_by') else list(current_user.groups)
+
+    watched_assignments = [a for a in assignments if a.status == 'Completed']
+    pending_assignments = [a for a in assignments if a.status in {'Assigned', 'Pending'}]
+    in_progress_assignments = [a for a in assignments if a.status == 'In Progress']
+
+    group_status_breakdown = []
+    for group in all_groups:
+        group_user_ids = [user.id for user in group.users.all()] if hasattr(group.users, 'all') else [member.id for member in group.users]
+        group_assignments = [assignment for assignment in assignments if assignment.user_id in group_user_ids]
+        group_status_breakdown.append({
+            'group': group,
+            'watched': sum(1 for assignment in group_assignments if assignment.status == 'Completed'),
+            'pending': sum(1 for assignment in group_assignments if assignment.status in {'Assigned', 'Pending'}),
+            'in_progress': sum(1 for assignment in group_assignments if assignment.status == 'In Progress'),
+            'total': len(group_assignments),
+        })
+
+    return render_template(
+        'security_awareness_list.html',
+        campaigns=campaigns,
+        assignments=assignments,
+        watched_assignments=watched_assignments,
+        pending_assignments=pending_assignments,
+        in_progress_assignments=in_progress_assignments,
+        group_status_breakdown=group_status_breakdown,
+    )
 
 
 @main.route('/security-awareness/generate', methods=['POST'])
@@ -1177,9 +1205,15 @@ def evidence_detail(evidence_id):
 @require_roles('admin', 'security_manager', 'user')
 def evidence_file(evidence_id):
     evidence = Evidence.query.filter_by(id=evidence_id, tenant_id=current_user.tenant_id).first_or_404()
-    if not evidence.file_path or not os.path.exists(evidence.file_path):
+    file_path = evidence.file_path
+    if not file_path:
         abort(404)
-    return send_file(evidence.file_path, as_attachment=False, mimetype=evidence.mime_type or 'application/octet-stream')
+
+    normalized_path = os.path.abspath(file_path)
+    if not os.path.exists(normalized_path):
+        abort(404)
+
+    return send_file(normalized_path, as_attachment=False, mimetype=evidence.mime_type or 'application/octet-stream')
 
 
 @main.route('/evidence/<int:evidence_id>/edit', methods=['GET', 'POST'])
