@@ -200,7 +200,7 @@ def logout():
     log_audit_event(current_user, 'user', current_user.id, 'logout')
     session.pop('pending_mfa_user_id', None)
     logout_user()
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.login'))
 
 
 # --- Users ---

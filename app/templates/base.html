@@ -49,6 +49,9 @@
             <div class="topbar-actions">
                 <span class="status-dot"></span>
                 <span>Operational</span>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('main.logout') }}" class="logout-link">Logout</a>
+                {% endif %}
             </div>
         </header>
 
