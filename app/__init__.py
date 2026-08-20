@@ -131,7 +131,7 @@ def create_app():
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True
     app.config['PREFERRED_URL_SCHEME'] = 'https'
     app.config['STORAGE_BACKEND'] = os.getenv('STORAGE_BACKEND', 'local')
-    app.config['STORAGE_BUCKET'] = os.getenv('STORAGE_BUCKET', 'mini-isms-local')
+    app.config['STORAGE_BUCKET'] = os.getenv('STORAGE_BUCKET', 'invaryant-local')
     app.config['S3_ENDPOINT_URL'] = os.getenv('S3_ENDPOINT_URL')
     app.config['S3_REGION'] = os.getenv('S3_REGION', 'us-east-1')
     app.config['S3_ACCESS_KEY_ID'] = os.getenv('S3_ACCESS_KEY_ID')

@@ -1,15 +1,26 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Mini ISMS Platform{% endblock %}
+{% block title %}Login - Invaryant ISMS Platform{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center align-items-center min-vh-50 py-5">
     <div class="col-lg-5 col-md-7">
         <div class="auth-card">
             <div class="auth-header text-center mb-4">
-                <div class="brand-mark mx-auto mb-3">IS</div>
+                <div class="brand-mark mx-auto mb-3" aria-label="Invaryant logo">
+                    <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
+                        <g fill="none" stroke="rgba(148,163,184,0.9)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="60,12 102,36 102,84 60,108 18,84 18,36" />
+                            <polyline points="18,36 60,12 102,36" />
+                            <polyline points="18,84 60,108 102,84" />
+                            <polyline points="18,36 60,60 102,36" />
+                            <polyline points="18,84 60,60 102,84" />
+                            <polyline points="60,12 60,108" />
+                        </g>
+                    </svg>
+                </div>
                 <h2 class="mb-1">Welcome back</h2>
-                <p class="text-muted mb-0">Sign in to your Mini ISMS workspace</p>
+                <p class="text-muted mb-0">Sign in to your Invaryant workspace</p>
             </div>
 
             {% with messages = get_flashed_messages() %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Initial Setup - Mini ISMS Platform{% endblock %}
+{% block title %}Initial Setup - Invaryant ISMS Platform{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -8,7 +8,7 @@
         <div class="card">
             <div class="card-body p-4">
                 <h2 class="mb-3">Initial Admin Setup</h2>
-                <p class="text-muted">Create your first tenant and admin account to start using Mini ISMS.</p>
+                <p class="text-muted">Create your first tenant and admin account to start using Invaryant.</p>
 
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">

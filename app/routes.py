@@ -177,7 +177,7 @@ def mfa_setup():
 
     otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
         name=current_user.email,
-        issuer_name='Mini ISMS Platform',
+        issuer_name='Invaryant ISMS Platform',
     )
     return render_template('mfa_setup.html', secret=secret, otp_uri=otp_uri, enabled=current_user.mfa_enabled)
 

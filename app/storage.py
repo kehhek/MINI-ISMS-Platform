@@ -64,8 +64,8 @@ class StorageService:
     @property
     def bucket_name(self):
         if self.app is None:
-            return os.getenv('STORAGE_BUCKET', 'mini-isms-local')
-        return self.app.config.get('STORAGE_BUCKET', 'mini-isms-local')
+            return os.getenv('STORAGE_BUCKET', 'invaryant-local')
+        return self.app.config.get('STORAGE_BUCKET', 'invaryant-local')
 
     def save(self, file, filename):
         if self.backend == 's3':
