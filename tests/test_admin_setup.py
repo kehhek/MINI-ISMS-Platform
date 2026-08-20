@@ -215,6 +215,32 @@ class AdminSetupFlowTest(unittest.TestCase):
         detail_response = self.client.get(f'/evidence/{evidence.id}')
         self.assertEqual(detail_response.status_code, 200)
 
+    def test_evidence_image_preview_route_works(self):
+        self.login_admin()
+
+        evidence = Evidence(
+            tenant_id=1,
+            title='Access Control Screenshot',
+            filename='access-control.png',
+            file_path='/tmp/access-control.png',
+            description='Screenshot of access control settings',
+            uploaded_by='Operations',
+            uploaded_by_user_id=1,
+            storage_provider='local',
+            file_size=100,
+            file_hash='abc',
+            mime_type='image/png',
+        )
+        db.session.add(evidence)
+        db.session.commit()
+
+        detail_response = self.client.get(f'/evidence/{evidence.id}')
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertIn('/evidence/%d/file' % evidence.id, detail_response.get_data(as_text=True))
+
+        preview_response = self.client.get(f'/evidence/{evidence.id}/file')
+        self.assertEqual(preview_response.status_code, 404)
+
     def test_dashboard_lists_overdue_actions(self):
         self.login_admin()
 

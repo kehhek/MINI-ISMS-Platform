@@ -65,6 +65,26 @@
     </div>
 </div>
 
+<div style="background-color: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+    <h3 style="color: #2c3e50; margin-bottom: 1rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 1rem;">Attachment Preview</h3>
+
+    {% if evidence.file_path and evidence.mime_type and evidence.mime_type.startswith('image/') and evidence.file_path|length > 0 %}
+        <div style="text-align: center; border: 1px solid #dfe6e9; border-radius: 8px; padding: 1rem; background: #f8f9fa;">
+            <img src="{{ url_for('main.evidence_file', evidence_id=evidence.id) }}" alt="{{ evidence.filename or evidence.title }}" style="max-width: 100%; max-height: 480px; border-radius: 6px; object-fit: contain;">
+        </div>
+        <div style="margin-top: 1rem; text-align: center;">
+            <a href="{{ url_for('main.evidence_file', evidence_id=evidence.id) }}" target="_blank" style="color: #1abc9c; text-decoration: none; font-weight: bold;">Open full-size image</a>
+        </div>
+    {% elif evidence.file_path %}
+        <p style="color: #555;">This file is not an image preview. You can download it below.</p>
+        <div style="margin-top: 1rem;">
+            <a href="{{ url_for('main.evidence_file', evidence_id=evidence.id) }}" style="background-color: #3498db; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">Download attachment</a>
+        </div>
+    {% else %}
+        <p style="color: #95a5a6; font-style: italic;">No attachment uploaded for this evidence item.</p>
+    {% endif %}
+</div>
+
 <div style="margin-top: 2rem; text-align: center;">
     <a href="/evidence/{{ evidence.id }}/delete" style="background-color: #c0392b; color: white; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;" onclick="return confirm('Are you sure? This will permanently delete this evidence record.');">
         Delete Evidence

@@ -8,7 +8,7 @@ import os
 from datetime import datetime, timedelta
 
 import pyotp
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file, session, abort
 from flask_login import login_required, login_user, logout_user, current_user
 from werkzeug.utils import secure_filename
 
@@ -1170,6 +1170,16 @@ def evidence_new():
 def evidence_detail(evidence_id):
     evidence = Evidence.query.filter_by(id=evidence_id, tenant_id=current_user.tenant_id).first_or_404()
     return render_template('evidence_detail.html', evidence=evidence)
+
+
+@main.route('/evidence/<int:evidence_id>/file')
+@login_required
+@require_roles('admin', 'security_manager', 'user')
+def evidence_file(evidence_id):
+    evidence = Evidence.query.filter_by(id=evidence_id, tenant_id=current_user.tenant_id).first_or_404()
+    if not evidence.file_path or not os.path.exists(evidence.file_path):
+        abort(404)
+    return send_file(evidence.file_path, as_attachment=False, mimetype=evidence.mime_type or 'application/octet-stream')
 
 
 @main.route('/evidence/<int:evidence_id>/edit', methods=['GET', 'POST'])
