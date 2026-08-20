@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Invaryant ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Account</p>
+        <h2 class="mb-0">{% if is_detail_view %}User Profile{% else %}My Profile{% endif %}</h2>
+    </div>
+    {% if not is_detail_view %}
+    <a href="/settings/mfa" class="btn btn-outline-primary">Manage MFA</a>
+    {% endif %}
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+        <div class="row g-4 align-items-center">
+            <div class="col-md-3 text-center">
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto" style="width: 110px; height: 110px; font-size: 2.5rem; font-weight: 600;">
+                    {{ user.full_name[0]|upper if user.full_name else 'U' }}
+                </div>
+            </div>
+            <div class="col-md-9">
+                <h3 class="mb-1">{{ user.full_name }}</h3>
+                <p class="text-muted mb-3">{{ user.email }}</p>
+
+                <div class="row g-3">
+                    <div class="col-sm-6 col-lg-4">
+                        <div class="small text-uppercase text-muted mb-1">Role</div>
+                        <div class="fw-semibold">{{ user.role.name if user.role else 'Unknown' }}</div>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <div class="small text-uppercase text-muted mb-1">Status</div>
+                        <div>
+                            {% if user.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <div class="small text-uppercase text-muted mb-1">MFA</div>
+                        <div>
+                            {% if user.mfa_enabled %}
+                            <span class="badge bg-success">Enabled</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Disabled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <div class="small text-uppercase text-muted mb-1">Tenant</div>
+                        <div>{{ user.tenant.name if user.tenant else 'Default Tenant' }}</div>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <div class="small text-uppercase text-muted mb-1">Last login</div>
+                        <div>{{ user.last_login_at.strftime('%Y-%m-%d %H:%M') if user.last_login_at else 'Never' }}</div>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <div class="small text-uppercase text-muted mb-1">Created</div>
+                        <div>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'Unknown' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-body p-4">
+        <h4 class="mb-3">Groups</h4>
+        {% if groups %}
+        <div class="d-flex flex-wrap gap-2">
+            {% for group in groups %}
+            <span class="badge bg-light text-dark border">{{ group.name }}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">This user is not assigned to any groups.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -204,6 +204,25 @@ def logout():
 
 
 # --- Users ---
+@main.route('/profile')
+@login_required
+def profile():
+    user = User.query.filter_by(id=current_user.id, tenant_id=current_user.tenant_id).first_or_404()
+    groups = user.groups.all() if hasattr(user.groups, 'all') else []
+    return render_template('user_profile.html', user=user, groups=groups)
+
+
+@main.route('/users/<int:user_id>')
+@login_required
+def user_detail(user_id):
+    user = User.query.filter_by(id=user_id, tenant_id=current_user.tenant_id).first_or_404()
+    if current_user.id != user.id and not (current_user.role and current_user.role.name in {'admin', 'security_manager'}):
+        flash('You do not have permission to view that profile.')
+        return redirect(url_for('main.profile'))
+    groups = user.groups.all() if hasattr(user.groups, 'all') else []
+    return render_template('user_profile.html', user=user, groups=groups, is_detail_view=True)
+
+
 @main.route('/users')
 @login_required
 @require_roles('admin', 'security_manager')
@@ -1090,6 +1109,7 @@ def corrective_action_delete(action_id):
 # --- Evidence ---
 @main.route('/evidence')
 @login_required
+@require_roles('admin', 'security_manager', 'user')
 def evidence_list():
     evidence = Evidence.query.filter_by(tenant_id=current_user.tenant_id).all()
     return render_template('evidence_list.html', evidence=evidence)
@@ -1146,6 +1166,7 @@ def evidence_new():
 
 @main.route('/evidence/<int:evidence_id>')
 @login_required
+@require_roles('admin', 'security_manager', 'user')
 def evidence_detail(evidence_id):
     evidence = Evidence.query.filter_by(id=evidence_id, tenant_id=current_user.tenant_id).first_or_404()
     return render_template('evidence_detail.html', evidence=evidence)
@@ -1316,11 +1337,12 @@ def dashboard():
 
     open_findings_count = Finding.query.filter(Finding.tenant_id == current_user.tenant_id, Finding.status != 'Closed').count()
 
-    overdue_actions_count = CorrectiveAction.query.filter(
+    overdue_actions = CorrectiveAction.query.filter(
         CorrectiveAction.tenant_id == current_user.tenant_id,
         CorrectiveAction.due_date < datetime.utcnow(),
         CorrectiveAction.status.notin_(['Completed', 'Verified'])
-    ).count()
+    ).order_by(CorrectiveAction.due_date.asc()).all()
+    overdue_actions_count = len(overdue_actions)
 
     high_risk_count = 0
     for r in Risk.query.filter_by(tenant_id=current_user.tenant_id).all():
@@ -1354,6 +1376,7 @@ def dashboard():
     return render_template('dashboard.html',
         control_implementation_pct=control_implementation_pct,
         open_findings_count=open_findings_count,
+        overdue_actions=overdue_actions,
         overdue_actions_count=overdue_actions_count,
         high_risk_count=high_risk_count,
         severity_counts=severity_counts,

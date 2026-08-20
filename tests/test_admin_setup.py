@@ -3,7 +3,7 @@ import unittest
 from io import BytesIO
 
 from app import create_app, db
-from app.models import Asset, ApprovalMatrix, ApprovalRecord, Control, Evidence, Policy, Risk, User, UserGroup, WorkInstruction
+from app.models import Asset, ApprovalMatrix, ApprovalRecord, Control, CorrectiveAction, Evidence, Finding, Policy, Risk, User, UserGroup, WorkInstruction
 
 
 class AdminSetupFlowTest(unittest.TestCase):
@@ -171,6 +171,89 @@ class AdminSetupFlowTest(unittest.TestCase):
         group = UserGroup.query.filter_by(name='Operations Team').first()
         self.assertIsNotNone(group)
         self.assertEqual(group.tenant_id, 1)
+
+    def test_standard_user_can_view_evidence(self):
+        self.login_admin()
+        user = User(
+            tenant_id=1,
+            email='standard@example.com',
+            full_name='Standard User',
+            role_id=4,
+            is_active=True,
+        )
+        user.set_password('StrongPass456!')
+        db.session.add(user)
+        db.session.commit()
+
+        evidence = Evidence(
+            tenant_id=1,
+            title='Quarterly Control Evidence',
+            filename='quarterly.pdf',
+            file_path='/tmp/quarterly.pdf',
+            description='Quarterly control validation evidence',
+            uploaded_by='Standard User',
+            uploaded_by_user_id=user.id,
+            storage_provider='local',
+            file_size=100,
+            file_hash='abc',
+            mime_type='application/pdf',
+        )
+        db.session.add(evidence)
+        db.session.commit()
+
+        token = self.get_csrf_token()
+        response = self.client.post('/login', data={
+            'email': 'standard@example.com',
+            'password': 'StrongPass456!',
+            'csrf_token': token,
+        }, follow_redirects=False)
+        self.assertEqual(response.status_code, 302)
+
+        list_response = self.client.get('/evidence')
+        self.assertEqual(list_response.status_code, 200)
+
+        detail_response = self.client.get(f'/evidence/{evidence.id}')
+        self.assertEqual(detail_response.status_code, 200)
+
+    def test_dashboard_lists_overdue_actions(self):
+        self.login_admin()
+
+        finding_record = Finding(
+            tenant_id=1,
+            title='Training gap',
+            description='Awareness training needs to be completed',
+            severity='High',
+            status='Open',
+            created_by_user_id=1,
+        )
+        db.session.add(finding_record)
+        db.session.commit()
+
+        action = CorrectiveAction(
+            tenant_id=1,
+            finding_id=finding_record.id,
+            description='Schedule phishing awareness training for all staff',
+            owner='IT Security',
+            due_date=__import__('datetime').datetime.utcnow().replace(year=2020),
+            status='In Progress',
+            created_by_user_id=1,
+        )
+        db.session.add(action)
+        db.session.commit()
+
+        dashboard_response = self.client.get('/dashboard')
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertIn('Schedule phishing awareness training for all staff', dashboard_response.get_data(as_text=True))
+
+    def test_authenticated_user_can_view_own_profile(self):
+        self.login_admin()
+
+        profile_response = self.client.get('/profile')
+        self.assertEqual(profile_response.status_code, 200)
+        self.assertIn('System Administrator', profile_response.get_data(as_text=True))
+
+        user_detail_response = self.client.get(f'/users/{User.query.filter_by(email="admin@example.com").first().id}')
+        self.assertEqual(user_detail_response.status_code, 200)
 
     def test_risk_crud_routes_work(self):
         self.login_admin()

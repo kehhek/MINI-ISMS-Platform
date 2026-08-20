@@ -25,7 +25,7 @@
         <tbody>
             {% for user in users %}
             <tr>
-                <td>{{ user.full_name }}</td>
+                <td><a href="/users/{{ user.id }}" class="text-decoration-none">{{ user.full_name }}</a></td>
                 <td>{{ user.email }}</td>
                 <td>{{ user.role.name if user.role else 'Unknown' }}</td>
                 <td>

@@ -65,6 +65,46 @@
 </div>
 
 <div class="row g-4 mt-2">
+    <div class="col-12">
+        <div class="info-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Overdue Actions</h5>
+                <span class="badge bg-danger-subtle text-danger">{{ overdue_actions_count }} past due</span>
+            </div>
+
+            {% if overdue_actions %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Finding</th>
+                                <th>Owner</th>
+                                <th>Due date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for action in overdue_actions %}
+                                <tr>
+                                    <td>{{ action.description }}</td>
+                                    <td>{{ action.finding.title if action.finding else 'Unassigned finding' }}</td>
+                                    <td>{{ action.owner or 'Unassigned' }}</td>
+                                    <td>{{ action.due_date.strftime('%Y-%m-%d') if action.due_date else 'No due date' }}</td>
+                                    <td><span class="badge bg-warning text-dark">{{ action.status }}</span></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">There are no overdue corrective actions at the moment.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
     <div class="col-lg-6">
         <div class="info-card">
             <h5 class="mb-3">What this means</h5>
