@@ -273,6 +273,30 @@ def user_new():
     return render_template('user_form.html', roles=roles)
 
 
+@main.route('/users/<int:user_id>/delete', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def user_delete(user_id):
+    user = User.query.filter_by(id=user_id, tenant_id=current_user.tenant_id).first_or_404()
+
+    if user.id == current_user.id:
+        flash('You cannot delete your own account.')
+        return redirect(url_for('main.users_list'))
+
+    if ApprovalRecord.query.filter_by(approver_id=user.id).first():
+        flash('This user has approval records and cannot be deleted until those records are reassigned or removed.')
+        return redirect(url_for('main.users_list'))
+
+    UserGroupMembership.query.filter_by(user_id=user.id).delete()
+    AwarenessAssignment.query.filter_by(user_id=user.id).delete()
+    db.session.delete(user)
+    db.session.commit()
+
+    log_audit_event(current_user, 'user', user.id, 'deleted', before_value=user.email, after_value=None)
+    flash('User deleted successfully.')
+    return redirect(url_for('main.users_list'))
+
+
 @main.route('/user-groups')
 @login_required
 @require_roles('admin', 'security_manager')

@@ -161,6 +161,28 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertTrue(user.check_password('StrongPass456!'))
         self.assertEqual(user.role.name, 'user')
 
+    def test_admin_can_delete_a_user(self):
+        self.login_admin()
+
+        user = User(
+            tenant_id=1,
+            email='delete-me@example.com',
+            full_name='Delete Me',
+            role_id=4,
+            is_active=True,
+        )
+        user.set_password('StrongPass456!')
+        db.session.add(user)
+        db.session.commit()
+
+        token = self.get_csrf_token()
+        response = self.client.post(f'/users/{user.id}/delete', data={
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(User.query.filter_by(id=user.id).first())
+
     def test_admin_can_create_a_user_group(self):
         self.login_admin()
 
