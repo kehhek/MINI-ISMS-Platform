@@ -123,6 +123,10 @@ class Policy(db.Model):
     approved_date = db.Column(db.DateTime, nullable=True)
     review_date = db.Column(db.DateTime, nullable=True)
     content_summary = db.Column(db.Text)
+    document_filename = db.Column(db.String(255), nullable=True)
+    document_path = db.Column(db.String(500), nullable=True)
+    mime_type = db.Column(db.String(100), nullable=True)
+    file_size = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 

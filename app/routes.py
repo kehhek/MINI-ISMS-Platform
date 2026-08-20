@@ -381,6 +381,7 @@ def policies_list():
 def policy_new():
     if request.method == 'POST':
         review_date = request.form.get('review_date')
+        file = request.files.get('file')
         policy = Policy(
             tenant_id=current_user.tenant_id,
             title=request.form['title'],
@@ -391,6 +392,20 @@ def policy_new():
             content_summary=request.form['content_summary'],
             created_by_user_id=current_user.id,
         )
+
+        if file and file.filename:
+            try:
+                filename = validate_upload(file)
+            except ValueError as exc:
+                flash(str(exc))
+                return redirect(url_for('main.policy_new'))
+            storage = get_storage_service(current_app)
+            filepath = storage.save(file, filename)
+            policy.document_filename = filename
+            policy.document_path = filepath
+            policy.mime_type = file.mimetype or 'application/pdf'
+            policy.file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+
         db.session.add(policy)
         db.session.commit()
         log_audit_event(current_user, 'policy', policy.id, 'created', before_value=None, after_value=policy.title)
@@ -412,6 +427,8 @@ def policy_edit(policy_id):
             'status': policy.status,
             'review_date': policy.review_date,
             'content_summary': policy.content_summary,
+            'document_filename': policy.document_filename,
+            'document_path': policy.document_path,
         }
         policy.title = request.form['title']
         policy.version = request.form.get('version')
@@ -420,6 +437,21 @@ def policy_edit(policy_id):
         review_date = request.form.get('review_date')
         policy.review_date = datetime.strptime(review_date, '%Y-%m-%d') if review_date else None
         policy.content_summary = request.form.get('content_summary')
+
+        file = request.files.get('file')
+        if file and file.filename:
+            try:
+                filename = validate_upload(file)
+            except ValueError as exc:
+                flash(str(exc))
+                return redirect(url_for('main.policy_edit', policy_id=policy.id))
+            storage = get_storage_service(current_app)
+            filepath = storage.save(file, filename)
+            policy.document_filename = filename
+            policy.document_path = filepath
+            policy.mime_type = file.mimetype or 'application/pdf'
+            policy.file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+
         db.session.commit()
         log_audit_event(current_user, 'policy', policy.id, 'updated', before_value=str(previous), after_value=str({
             'title': policy.title,
@@ -428,10 +460,22 @@ def policy_edit(policy_id):
             'status': policy.status,
             'review_date': policy.review_date,
             'content_summary': policy.content_summary,
+            'document_filename': policy.document_filename,
+            'document_path': policy.document_path,
         }))
         flash('Policy updated successfully.')
         return redirect(url_for('main.policies_list'))
     return render_template('policy_form.html', policy=policy)
+
+
+@main.route('/policies/<int:policy_id>/download')
+@login_required
+def policy_download(policy_id):
+    policy = Policy.query.filter_by(id=policy_id, tenant_id=current_user.tenant_id).first_or_404()
+    if not policy.document_path or not os.path.exists(policy.document_path):
+        flash('No policy document is attached.')
+        return redirect(url_for('main.policies_list'))
+    return send_file(policy.document_path, as_attachment=True, download_name=policy.document_filename or 'policy.pdf', mimetype=policy.mime_type or 'application/pdf')
 
 
 # --- Controls ---

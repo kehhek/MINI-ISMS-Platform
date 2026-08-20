@@ -5,7 +5,7 @@
 {% block content %}
 <h2>{% if policy %}Edit Policy: {{ policy.title }}{% else %}Create New Policy{% endif %}</h2>
 
-<form method="POST" style="max-width: 700px; margin-top: 2rem;">
+<form method="POST" enctype="multipart/form-data" style="max-width: 700px; margin-top: 2rem;">
     <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
     <div style="margin-bottom: 1.5rem;">
         <label for="title" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Policy Title *</label>
@@ -77,6 +77,23 @@
             placeholder="Briefly describe the policy content and key requirements..."
             style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem; font-family: inherit;"
         >{{ policy.content_summary if policy else '' }}</textarea>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <label for="file" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Policy PDF (optional)</label>
+        <input
+            type="file"
+            id="file"
+            name="file"
+            accept="application/pdf"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;"
+        >
+        {% if policy and policy.document_filename %}
+        <p style="margin-top: 0.5rem; color: #2c3e50; font-size: 0.9rem;">
+            Current file: {{ policy.document_filename }}
+            <a href="/policies/{{ policy.id }}/download" style="color: #3498db; text-decoration: none; margin-left: 0.5rem;">Download</a>
+        </p>
+        {% endif %}
     </div>
 
     <div style="display: flex; gap: 1rem; margin-top: 2rem;">

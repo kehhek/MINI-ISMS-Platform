@@ -1,5 +1,6 @@
 import os
 import unittest
+from io import BytesIO
 
 from app import create_app, db
 from app.models import Asset, Control, Evidence, Policy, Risk, User
@@ -94,6 +95,27 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertEqual(updated.title, 'Updated Policy')
         self.assertEqual(updated.version, '2.0')
         self.assertEqual(updated.owner, 'Compliance')
+
+    def test_admin_can_upload_pdf_policy_document(self):
+        self.login_admin()
+
+        token = self.get_csrf_token()
+        response = self.client.post('/policies/new', data={
+            'title': 'Remote Access Policy',
+            'version': '3.0',
+            'owner': 'IT Security',
+            'status': 'Approved',
+            'review_date': '2026-12-31',
+            'content_summary': 'Remote access controls',
+            'file': (BytesIO(b'%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'), 'policy.pdf'),
+            'csrf_token': token,
+        }, content_type='multipart/form-data', follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        policy = Policy.query.filter_by(title='Remote Access Policy').first()
+        self.assertIsNotNone(policy)
+        self.assertEqual(policy.document_filename, 'policy.pdf')
+        self.assertTrue(policy.document_path)
 
     def test_risk_crud_routes_work(self):
         self.login_admin()
