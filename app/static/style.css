@@ -106,6 +106,12 @@ body {
     display: flex;
 }
 
+.quick-nav-button:focus-visible,
+.quick-nav-menu a:focus-visible {
+    outline: 2px solid rgba(59, 130, 246, 0.8);
+    outline-offset: 2px;
+}
+
 .quick-nav-menu a {
     color: rgba(255, 255, 255, 0.88);
     text-decoration: none;

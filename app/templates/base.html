@@ -53,12 +53,8 @@
         </header>
 
         <nav class="main-nav" aria-label="Main navigation">
-            <a class="nav-brand" href="/overview">Overview</a>
             <div class="nav-menu">
                 <a class="nav-link" href="/dashboard">Dashboard</a>
-                <a class="nav-link" href="/profile">Profile</a>
-                <a class="nav-link" href="/users">Users</a>
-                <a class="nav-link" href="/user-groups">Groups</a>
                 <a class="nav-link" href="/assets">Assets</a>
                 <a class="nav-link" href="/risks">Risks</a>
                 <a class="nav-link" href="/policies">Policies</a>
@@ -82,6 +78,47 @@
             <p>&copy; 2026 Invaryant ISMS Platform. All rights reserved.</p>
         </footer>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const quickNav = document.querySelector('.quick-nav');
+            if (!quickNav) return;
+
+            const button = quickNav.querySelector('.quick-nav-button');
+            const menu = quickNav.querySelector('.quick-nav-menu');
+            if (!button || !menu) return;
+
+            const closeMenu = () => {
+                quickNav.classList.remove('open');
+                button.setAttribute('aria-expanded', 'false');
+            };
+
+            const openMenu = () => {
+                quickNav.classList.add('open');
+                button.setAttribute('aria-expanded', 'true');
+            };
+
+            button.addEventListener('click', function (event) {
+                event.stopPropagation();
+                const shouldOpen = !quickNav.classList.contains('open');
+                if (shouldOpen) {
+                    openMenu();
+                } else {
+                    closeMenu();
+                }
+            });
+
+            quickNav.addEventListener('mouseenter', openMenu);
+            quickNav.addEventListener('mouseleave', closeMenu);
+            menu.addEventListener('click', closeMenu);
+
+            document.addEventListener('click', function (event) {
+                if (!quickNav.contains(event.target)) {
+                    closeMenu();
+                }
+            });
+        });
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>
