@@ -456,6 +456,58 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertIn('Pending', page_html)
         self.assertIn('In Progress', page_html)
 
+    def test_security_awareness_video_uses_browser_completion_tracking(self):
+        self.login_admin()
+
+        campaign = SecurityAwarenessCampaign(
+            tenant_id=1,
+            title='Security Awareness - November 2026',
+            month_label='November 2026',
+            video_title='November security briefing',
+            description='Video training for the month.',
+            video_url='https://example.com/video.mp4',
+            status='Scheduled',
+            created_by_user_id=1,
+        )
+        db.session.add(campaign)
+        db.session.commit()
+
+        assignment = AwarenessAssignment(
+            tenant_id=1,
+            campaign_id=campaign.id,
+            user_id=User.query.filter_by(email='admin@example.com').first().id,
+            status='Assigned',
+            assigned_at=__import__('datetime').datetime.utcnow(),
+        )
+        db.session.add(assignment)
+        db.session.commit()
+
+        awareness_response = self.client.get('/security-awareness')
+        page_html = awareness_response.get_data(as_text=True)
+        self.assertIn('<video', page_html)
+        self.assertIn('data-assignment-id', page_html)
+        self.assertIn('markWatched', page_html)
+
+    def test_admin_can_upload_video_for_security_awareness_campaign(self):
+        self.login_admin()
+
+        token = self.get_csrf_token()
+        response = self.client.post('/security-awareness/generate', data={
+            'title': 'Security Awareness - September 2026',
+            'month_label': 'September 2026',
+            'video_title': 'September security briefing',
+            'description': 'Video training for the month.',
+            'video_url': '',
+            'video_file': (BytesIO(b'\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00'), 'security-briefing.mp4'),
+            'csrf_token': token,
+        }, content_type='multipart/form-data', follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        campaign = SecurityAwarenessCampaign.query.filter_by(title='Security Awareness - September 2026').first()
+        self.assertIsNotNone(campaign)
+        self.assertTrue(campaign.video_url)
+        self.assertIn('/security-awareness/video/', campaign.video_url)
+
     def test_dashboard_lists_overdue_actions(self):
         self.login_admin()
 

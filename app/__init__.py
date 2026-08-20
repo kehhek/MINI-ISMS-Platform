@@ -156,8 +156,8 @@ def create_app():
     if not os.path.isabs(configured_upload_folder):
         configured_upload_folder = os.path.abspath(os.path.join(project_root, configured_upload_folder))
     app.config['UPLOAD_FOLDER'] = configured_upload_folder
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-    app.config['ALLOWED_UPLOAD_EXTENSIONS'] = {'.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'}
+    app.config['MAX_CONTENT_LENGTH'] = 250 * 1024 * 1024
+    app.config['ALLOWED_UPLOAD_EXTENSIONS'] = {'.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv'}
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', '1' if os.getenv('APP_ENV') == 'production' else '0') == '1'

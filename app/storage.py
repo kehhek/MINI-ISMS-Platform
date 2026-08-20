@@ -45,6 +45,28 @@ def validate_upload(file):
     return filename
 
 
+def validate_video_upload(file):
+    if file is None or not getattr(file, 'filename', None):
+        raise ValueError('No video was uploaded.')
+
+    filename = secure_filename(file.filename)
+    if not filename:
+        raise ValueError('Invalid file name.')
+
+    ext = os.path.splitext(filename)[1].lower()
+    allowed = {'.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv'}
+    if ext not in allowed:
+        raise ValueError('Video file type is not allowed.')
+
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    if size <= 0 or size > 250 * 1024 * 1024:
+        raise ValueError('Video exceeds the 250MB upload limit.')
+
+    return filename
+
+
 class StorageService:
     def __init__(self, app=None):
         self.app = app

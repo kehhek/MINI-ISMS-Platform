@@ -13,7 +13,7 @@ from flask_login import login_required, login_user, logout_user, current_user
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.storage import get_storage_service, validate_upload
+from app.storage import get_storage_service, validate_upload, validate_video_upload
 from app.models import (
     Tenant, Asset, Risk, Policy, WorkInstruction, SecurityAwarenessCampaign, AwarenessAssignment, Control, Finding, CorrectiveAction, Evidence, User, UserGroup, UserGroupMembership, AuditEvent, Role, ApprovalMatrix, ApprovalRecord
 )
@@ -821,6 +821,20 @@ def security_awareness_list():
     )
 
 
+@main.route('/security-awareness/video/<path:filename>')
+@login_required
+def security_awareness_video(filename):
+    safe_filename = secure_filename(filename)
+    if not safe_filename:
+        abort(404)
+
+    video_path = os.path.join(current_app.config['UPLOAD_FOLDER'], safe_filename)
+    if not os.path.exists(video_path):
+        abort(404)
+
+    return send_file(video_path, mimetype='video/mp4')
+
+
 @main.route('/security-awareness/generate', methods=['POST'])
 @login_required
 @require_roles('admin', 'security_manager')
@@ -829,7 +843,22 @@ def generate_monthly_security_awareness():
     month_label = request.form.get('month_label') or datetime.utcnow().strftime('%B %Y')
     video_title = request.form.get('video_title') or 'Monthly Security Awareness Briefing'
     description = request.form.get('description') or 'Monthly security awareness briefing covering phishing, password hygiene, and secure working practices.'
-    video_url = request.form.get('video_url') or 'https://example.com/security-awareness/' + month_label.lower().replace(' ', '-') + '.mp4'
+    video_url = request.form.get('video_url', '').strip()
+    video_file = request.files.get('video_file')
+
+    if video_file and video_file.filename:
+        try:
+            filename = validate_video_upload(video_file)
+        except ValueError as exc:
+            flash(str(exc))
+            return redirect(url_for('main.security_awareness_new'))
+
+        storage = get_storage_service(current_app)
+        saved_path = storage.save(video_file, filename)
+        video_url = url_for('main.security_awareness_video', filename=os.path.basename(saved_path))
+    elif not video_url:
+        video_url = 'https://example.com/security-awareness/' + month_label.lower().replace(' ', '-') + '.mp4'
+
     due_date = request.form.get('due_date')
     due_date_obj = datetime.strptime(due_date, '%Y-%m-%d') if due_date else datetime.utcnow() + timedelta(days=30)
 
@@ -875,6 +904,20 @@ def complete_security_awareness(campaign_id):
     log_audit_event(current_user, 'security_awareness_assignment', assignment.id, 'completed', before_value='Assigned', after_value='Completed')
     flash('Security awareness video marked as complete.')
     return redirect(url_for('main.security_awareness_list'))
+
+
+@main.route('/security-awareness/<int:assignment_id>/mark-watched', methods=['POST'])
+@login_required
+def mark_security_awareness_watched(assignment_id):
+    assignment = AwarenessAssignment.query.filter_by(id=assignment_id, user_id=current_user.id).first_or_404()
+    previous_status = assignment.status
+    assignment.status = 'Completed'
+    assignment.watched_at = datetime.utcnow()
+    assignment.completion_score = 100
+    assignment.notes = (assignment.notes or '') + ' Video watched in browser.'
+    db.session.commit()
+    log_audit_event(current_user, 'security_awareness_assignment', assignment.id, 'browser_completed', before_value=previous_status, after_value='Completed')
+    return {'status': 'completed', 'assignment_id': assignment.id, 'watched_at': assignment.watched_at.isoformat()}, 200
 
 
 @main.route('/security-awareness/new', methods=['GET'])

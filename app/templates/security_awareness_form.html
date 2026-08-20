@@ -7,7 +7,7 @@
     <h2>Generate Monthly Security Awareness Video</h2>
     <p class="text-muted">Create a short awareness briefing and assign it to all active users in this tenant.</p>
 
-    <form method="POST" action="/security-awareness/generate">
+    <form method="POST" action="/security-awareness/generate" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
 
         <div class="mb-3">
@@ -37,8 +37,14 @@
         </div>
 
         <div class="mb-3">
+            <label for="video_file" class="form-label">Upload video from this device</label>
+            <input id="video_file" name="video_file" type="file" class="form-control" accept=".mp4,.mov,.m4v,.webm,.avi,.mkv" aria-describedby="video-upload-help">
+            <div id="video-upload-help" class="form-text">Optional: upload a video from your device. If you prefer, you can also provide a remote video URL instead.</div>
+        </div>
+
+        <div class="mb-3">
             <label for="video_url" class="form-label">Video URL</label>
-            <input id="video_url" name="video_url" class="form-control" placeholder="https://example.com/security-awareness-video.mp4" required>
+            <input id="video_url" name="video_url" class="form-control" placeholder="https://example.com/security-awareness-video.mp4">
         </div>
 
         <div class="d-flex gap-2">

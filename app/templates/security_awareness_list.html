@@ -17,6 +17,16 @@
 {% if campaigns %}
 <div class="row g-4">
     {% for campaign in campaigns %}
+    {% set assignment = none %}
+    {% if current_user.role and (current_user.role.name == 'admin' or current_user.role.name == 'security_manager') %}
+        {% set assignment = none %}
+    {% else %}
+        {% for item in current_user.awareness_assignments %}
+            {% if item.campaign_id == campaign.id %}
+                {% set assignment = item %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
     <div class="col-lg-6">
         <div class="card h-100 p-4">
             <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -34,27 +44,31 @@
 
             {% if campaign.video_url %}
             <div class="mb-3">
-                <a href="{{ campaign.video_url }}" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">Watch video</a>
+                <video
+                    controls
+                    preload="metadata"
+                    class="w-100 rounded border"
+                    data-assignment-id="{{ assignment.id if assignment else '' }}"
+                    data-csrf-token="{{ session.get('_csrf_token') }}"
+                    {% if assignment and assignment.status == 'Completed' %}data-watched="true"{% endif %}>
+                    <source src="{{ campaign.video_url }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <div class="mt-2">
+                    <a href="{{ campaign.video_url }}" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">Open video</a>
+                </div>
             </div>
             {% endif %}
 
             {% if current_user.role and (current_user.role.name == 'admin' or current_user.role.name == 'security_manager') %}
             <div class="small text-muted mb-2">Due: {{ campaign.due_date.strftime('%Y-%m-%d') if campaign.due_date else 'Not set' }}</div>
-            {% else %}
-            {% set assignment = None %}
-            {% for item in current_user.awareness_assignments %}
-                {% if item.campaign_id == campaign.id %}
-                    {% set assignment = item %}
-                {% endif %}
-            {% endfor %}
-            {% if assignment %}
+            {% elif assignment %}
             <form method="POST" action="/security-awareness/{{ assignment.id }}/complete">
                 <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
                 <button type="submit" class="btn btn-success btn-sm" {% if assignment.status == 'Completed' %}disabled{% endif %}>
                     {% if assignment.status == 'Completed' %}Completed{% else %}Mark as watched{% endif %}
                 </button>
             </form>
-            {% endif %}
             {% endif %}
         </div>
     </div>
@@ -66,6 +80,48 @@
     <p class="mb-0">Generate the first monthly security awareness briefing to assign it to users.</p>
 </div>
 {% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const videos = document.querySelectorAll('video[data-assignment-id]');
+        videos.forEach(function (video) {
+            const assignmentId = video.dataset.assignmentId;
+            if (!assignmentId) return;
+
+            const csrfToken = video.dataset.csrfToken || '';
+            const markWatched = function () {
+                if (video.dataset.watched === 'true') return;
+                fetch(`/security-awareness/${assignmentId}/mark-watched`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: new URLSearchParams({ csrf_token: csrfToken })
+                }).then(function (response) {
+                    if (response.ok) {
+                        video.dataset.watched = 'true';
+                        const badge = video.closest('.card')?.querySelector('.badge');
+                        if (badge) {
+                            badge.className = 'badge bg-success';
+                            badge.textContent = 'Completed';
+                        }
+                    }
+                }).catch(function () {
+                    console.warn('Unable to mark security awareness video as watched.');
+                });
+            };
+
+            video.addEventListener('ended', markWatched);
+            video.addEventListener('timeupdate', function () {
+                if (video.duration && video.currentTime / video.duration >= 0.8) {
+                    markWatched();
+                }
+            });
+        });
+    });
+</script>
 
 {% if assignments %}
 <div class="mt-5">

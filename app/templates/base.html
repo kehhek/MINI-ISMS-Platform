@@ -108,9 +108,9 @@
                 }
             });
 
-            quickNav.addEventListener('mouseenter', openMenu);
-            quickNav.addEventListener('mouseleave', closeMenu);
-            menu.addEventListener('click', closeMenu);
+            menu.addEventListener('click', function () {
+                closeMenu();
+            });
 
             document.addEventListener('click', function (event) {
                 if (!quickNav.contains(event.target)) {
