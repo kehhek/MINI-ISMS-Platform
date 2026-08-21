@@ -162,6 +162,37 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertTrue(user.check_password('StrongPass456!'))
         self.assertEqual(user.role.name, 'user')
 
+    def test_admin_can_edit_user_information(self):
+        user = User(
+            tenant_id=1,
+            email='edit-me@example.com',
+            full_name='Editable User',
+            role_id=4,
+            is_active=True,
+        )
+        user.set_password('StrongPass456!')
+        db.session.add(user)
+        db.session.commit()
+
+        self.login_admin()
+
+        token = self.get_csrf_token()
+        response = self.client.post(f'/users/{user.id}/edit', data={
+            'full_name': 'Updated Name',
+            'email': 'updated-user@example.com',
+            'role_id': '3',
+            'is_active': '0',
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        db.session.expire_all()
+        updated_user = User.query.get(user.id)
+        self.assertEqual(updated_user.full_name, 'Updated Name')
+        self.assertEqual(updated_user.email, 'updated-user@example.com')
+        self.assertEqual(updated_user.role.name, 'auditor')
+        self.assertFalse(updated_user.is_active)
+
     def test_service_layer_registers_user_and_resets_password(self):
         user = register_user_account('Service User', 'service-user@example.com', 'StrongPass789!')
         self.assertIsNotNone(user)

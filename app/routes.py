@@ -430,6 +430,45 @@ def user_new():
     return render_template('user_form.html', roles=roles)
 
 
+@main.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def user_edit(user_id):
+    user = User.query.filter_by(id=user_id, tenant_id=current_user.tenant_id).first_or_404()
+    roles = Role.query.filter_by(tenant_id=current_user.tenant_id).all()
+
+    if request.method == 'POST':
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        role_id = request.form.get('role_id')
+        is_active = request.form.get('is_active') == '1'
+
+        if not full_name or not email:
+            flash('Full name and email are required.')
+            return render_template('user_edit_form.html', user=user, roles=roles)
+
+        if email != user.email and User.query.filter_by(email=email).first():
+            flash('A user with that email already exists.')
+            return render_template('user_edit_form.html', user=user, roles=roles)
+
+        selected_role = Role.query.filter_by(id=role_id, tenant_id=current_user.tenant_id).first()
+        if selected_role is None:
+            flash('Please select a valid role.')
+            return render_template('user_edit_form.html', user=user, roles=roles)
+
+        user.full_name = full_name
+        user.email = email
+        user.role_id = selected_role.id
+        user.is_active = is_active
+        db.session.commit()
+
+        log_audit_event(current_user, 'user', user.id, 'updated', before_value=None, after_value=user.email)
+        flash('User updated successfully.')
+        return redirect(url_for('main.users_list'))
+
+    return render_template('user_edit_form.html', user=user, roles=roles)
+
+
 @main.route('/users/<int:user_id>/delete', methods=['GET', 'POST'])
 @login_required
 @require_roles('admin', 'security_manager')
