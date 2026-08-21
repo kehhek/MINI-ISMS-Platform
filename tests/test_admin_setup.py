@@ -661,6 +661,36 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertIn('Schedule phishing awareness training for all staff', dashboard_response.get_data(as_text=True))
 
+    def test_notifications_page_renders_alerts(self):
+        self.login_admin()
+
+        finding_record = Finding(
+            tenant_id=1,
+            title='Training gap',
+            description='Awareness training needs to be completed',
+            severity='High',
+            status='Open',
+            created_by_user_id=1,
+        )
+        db.session.add(finding_record)
+        db.session.commit()
+
+        CorrectiveAction(
+            tenant_id=1,
+            finding_id=finding_record.id,
+            description='Schedule phishing awareness training for all staff',
+            owner='IT Security',
+            due_date=__import__('datetime').datetime.utcnow().replace(year=2020),
+            status='In Progress',
+            created_by_user_id=1,
+        )
+
+        response = self.client.get('/notifications')
+        self.assertEqual(response.status_code, 200)
+        content = response.get_data(as_text=True)
+        self.assertIn('Notifications', content)
+        self.assertIn('Open findings remain', content)
+
     def test_authenticated_user_can_view_own_profile(self):
         self.login_admin()
 

@@ -22,6 +22,7 @@ def add_missing_columns_for_legacy_db():
         'tenants': [],
         'roles': ['tenant_id'],
         'users': ['tenant_id', 'role_id', 'is_active', 'mfa_enabled', 'mfa_secret', 'profile_photo_path', 'last_login_at'],
+        'password_reset_tokens': ['user_id', 'token', 'created_at', 'expires_at', 'used_at'],
         'assets': ['tenant_id', 'created_by_user_id'],
         'risks': ['tenant_id', 'created_by_user_id', 'approval_status', 'approved_by_user_id', 'approved_at', 'approval_reason', 'signature_hash', 'locked_at'],
         'policies': ['tenant_id', 'created_by_user_id', 'document_filename', 'document_path', 'mime_type', 'file_size'],
@@ -152,6 +153,8 @@ def create_app():
     if not app.config['SECRET_KEY']:
         raise RuntimeError('SECRET_KEY environment variable is required. Set it before starting the app.')
     app.config['ENV'] = 'production' if os.getenv('APP_ENV') == 'production' else 'development'
+    app.config['DEBUG'] = os.getenv('APP_ENV') == 'development'
+    app.config['TESTING'] = os.getenv('APP_ENV') == 'testing'
 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     configured_upload_folder = os.getenv('UPLOAD_FOLDER', os.path.join(project_root, 'instance', 'uploads'))
@@ -160,10 +163,12 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = configured_upload_folder
     app.config['MAX_CONTENT_LENGTH'] = 250 * 1024 * 1024
     app.config['ALLOWED_UPLOAD_EXTENSIONS'] = {'.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv'}
+    app.config['SESSION_COOKIE_NAME'] = 'invaryant_session'
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', '1' if os.getenv('APP_ENV') == 'production' else '0') == '1'
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+    app.config['SESSION_PROTECTION'] = 'strong'
     app.config['PREFERRED_URL_SCHEME'] = 'https'
     app.config['STORAGE_BACKEND'] = os.getenv('STORAGE_BACKEND', 'local')
     app.config['STORAGE_BUCKET'] = os.getenv('STORAGE_BUCKET', 'invaryant-local')

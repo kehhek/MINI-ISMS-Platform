@@ -9,7 +9,15 @@ from flask import current_app
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.models import PasswordResetToken, Role, Tenant, User
+from app.models import (
+    CorrectiveAction,
+    Finding,
+    PasswordResetToken,
+    Risk,
+    Role,
+    Tenant,
+    User,
+)
 from app.storage import get_storage_service, validate_upload
 
 
@@ -157,3 +165,62 @@ def update_user_profile(user: User, full_name: str, email: str, profile_photo=No
 
     db.session.commit()
     return user
+
+
+def build_user_notifications(user: User):
+    if user is None:
+        return []
+
+    notifications = []
+
+    overdue_actions = CorrectiveAction.query.filter(
+        CorrectiveAction.tenant_id == user.tenant_id,
+        CorrectiveAction.due_date < datetime.utcnow(),
+        CorrectiveAction.status.notin_(['Completed', 'Verified'])
+    ).order_by(CorrectiveAction.due_date.asc()).all()
+
+    if overdue_actions:
+        notifications.append({
+            'title': 'Overdue corrective action',
+            'message': f'{len(overdue_actions)} corrective action(s) are past due and need attention.',
+            'category': 'Action required',
+            'priority': 'high',
+            'link': '/dashboard',
+        })
+
+    high_risk_count = sum(
+        1 for risk in Risk.query.filter_by(tenant_id=user.tenant_id).all()
+        if risk.risk_score is not None and risk.risk_score >= 15
+    )
+    if high_risk_count:
+        notifications.append({
+            'title': 'High-risk exposure',
+            'message': f'{high_risk_count} high-risk item(s) require review and prioritization.',
+            'category': 'Risk',
+            'priority': 'high',
+            'link': '/risks',
+        })
+
+    open_findings = Finding.query.filter(
+        Finding.tenant_id == user.tenant_id,
+        Finding.status != 'Closed'
+    ).count()
+    if open_findings:
+        notifications.append({
+            'title': 'Open findings remain',
+            'message': f'{open_findings} finding(s) are still active and should be addressed.',
+            'category': 'Finding',
+            'priority': 'medium',
+            'link': '/findings',
+        })
+
+    if not notifications:
+        notifications.append({
+            'title': 'No active alerts',
+            'message': 'There are no overdue actions or priority findings at the moment.',
+            'category': 'Status',
+            'priority': 'low',
+            'link': '/dashboard',
+        })
+
+    return notifications

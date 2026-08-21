@@ -17,6 +17,7 @@ from werkzeug.utils import secure_filename
 
 from app import db
 from app.services import (
+    build_user_notifications,
     complete_password_reset,
     create_tenant_user,
     register_user_account,
@@ -273,18 +274,51 @@ def mfa_verify():
 @login_required
 def mfa_setup():
     if request.method == 'POST':
+        verification_code = (request.form.get('verification_code') or '').strip()
+
         if not current_user.mfa_secret:
             current_user.mfa_secret = pyotp.random_base32()
+
         if request.form.get('enable') == '1':
+            if not verification_code:
+                flash('A verification code is required to enable MFA.')
+                return render_template(
+                    'mfa_setup.html',
+                    secret=current_user.mfa_secret,
+                    otp_uri=pyotp.totp.TOTP(current_user.mfa_secret).provisioning_uri(
+                        name=current_user.email,
+                        issuer_name='Invaryant ISMS Platform',
+                    ),
+                    enabled=current_user.mfa_enabled,
+                )
+
+            totp = pyotp.TOTP(current_user.mfa_secret)
+            if not totp.verify(verification_code, valid_window=1):
+                flash('The verification code was invalid. Please try again.')
+                return render_template(
+                    'mfa_setup.html',
+                    secret=current_user.mfa_secret,
+                    otp_uri=pyotp.totp.TOTP(current_user.mfa_secret).provisioning_uri(
+                        name=current_user.email,
+                        issuer_name='Invaryant ISMS Platform',
+                    ),
+                    enabled=current_user.mfa_enabled,
+                )
+
             current_user.mfa_enabled = True
             db.session.commit()
             flash('Multi-factor authentication enabled.')
-        elif request.form.get('disable') == '1':
+            return redirect(url_for('main.dashboard'))
+
+        if request.form.get('disable') == '1':
             current_user.mfa_enabled = False
             current_user.mfa_secret = None
             db.session.commit()
             flash('Multi-factor authentication disabled.')
-        return redirect(url_for('main.dashboard'))
+            return redirect(url_for('main.dashboard'))
+
+        flash('No MFA action was selected.')
+        return redirect(url_for('main.mfa_setup'))
 
     secret = current_user.mfa_secret or pyotp.random_base32()
     if not current_user.mfa_secret:
@@ -1607,6 +1641,8 @@ def dashboard():
         else:
             risk_buckets['Low (1-7)'] += 1
 
+    notifications = build_user_notifications(current_user)
+
     return render_template('dashboard.html',
         control_implementation_pct=control_implementation_pct,
         open_findings_count=open_findings_count,
@@ -1615,5 +1651,14 @@ def dashboard():
         high_risk_count=high_risk_count,
         severity_counts=severity_counts,
         control_status_counts=control_status_counts,
-        risk_buckets=risk_buckets
+        risk_buckets=risk_buckets,
+        notifications=notifications,
+        notification_count=len(notifications)
     )
+
+
+@main.route('/notifications')
+@login_required
+def notifications_page():
+    notifications = build_user_notifications(current_user)
+    return render_template('notifications.html', notifications=notifications)

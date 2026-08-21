@@ -37,6 +37,10 @@
                         <button type="submit" class="btn btn-outline-danger">Disable MFA</button>
                     {% else %}
                         <input type="hidden" name="enable" value="1">
+                        <div class="mb-3">
+                            <label for="verification_code" class="form-label">Verification code</label>
+                            <input type="text" id="verification_code" name="verification_code" class="form-control" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="6" required>
+                        </div>
                         <button type="submit" class="btn btn-primary">Enable MFA</button>
                     {% endif %}
                 </form>

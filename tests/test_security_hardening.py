@@ -66,6 +66,31 @@ class SecurityHardeningTest(unittest.TestCase):
         self.assertIn('X-Content-Type-Options', response.headers)
         self.assertEqual(response.headers['X-Frame-Options'], 'DENY')
 
+    def test_enabling_mfa_requires_a_valid_verification_code(self):
+        user = User.query.filter_by(email='admin@example.com').first()
+        user.mfa_enabled = False
+        user.mfa_secret = None
+        db.session.commit()
+
+        token = self.get_csrf_token()
+        login_response = self.client.post('/login', data={
+            'email': 'admin@example.com',
+            'password': 'StrongPass123!',
+            'csrf_token': token,
+        }, follow_redirects=False)
+        self.assertEqual(login_response.status_code, 302)
+
+        response = self.client.post('/settings/mfa', data={
+            'enable': '1',
+            'verification_code': '000000',
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('The verification code was invalid', response.get_data(as_text=True))
+        db.session.refresh(user)
+        self.assertFalse(user.mfa_enabled)
+
     def test_login_requires_mfa_when_enabled(self):
         user = User.query.filter_by(email='admin@example.com').first()
         user.mfa_enabled = True

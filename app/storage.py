@@ -29,7 +29,7 @@ def validate_upload(file):
 
     if ext == '.pdf' and not sample.startswith(b'%PDF'):
         raise ValueError('PDF content is invalid.')
-    if ext in {'.png'} and not sample.startswith(b'\x89PNG\r\n\x1a\n'):
+    if ext == '.png' and not sample.startswith(b'\x89PNG\r\n\x1a\n'):
         raise ValueError('PNG content is invalid.')
     if ext in {'.jpg', '.jpeg'} and sample[:2] not in {b'\xff\xd8', b'\xFF\xD8'}:
         raise ValueError('JPEG content is invalid.')
@@ -41,6 +41,16 @@ def validate_upload(file):
             file.seek(0)
     if ext in {'.csv', '.txt'} and b'\x00' in sample:
         raise ValueError('Text file content is invalid.')
+
+    if hasattr(file, 'mimetype') and file.mimetype:
+        expected = {
+            '.pdf': 'application/pdf',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+        }
+        if ext in expected and file.mimetype != expected[ext]:
+            raise ValueError('File content does not match the declared type.')
 
     return filename
 
@@ -88,20 +98,25 @@ class StorageService:
             configured = str((Path(__file__).resolve().parent.parent / configured).resolve())
         return configured
 
+    def _resolve_subdir(self, folder_name='general'):
+        folder = secure_filename(str(folder_name)) or 'general'
+        target_dir = Path(self.upload_root) / folder
+        target_dir.mkdir(parents=True, exist_ok=True)
+        return target_dir
+
     @property
     def bucket_name(self):
         if self.app is None:
             return os.getenv('STORAGE_BUCKET', 'invaryant-local')
         return self.app.config.get('STORAGE_BUCKET', 'invaryant-local')
 
-    def save(self, file, filename):
+    def save(self, file, filename, folder_name='general'):
         if self.backend == 's3':
             return self._save_to_s3(file, filename)
-        return self._save_to_local(file, filename)
+        return self._save_to_local(file, filename, folder_name=folder_name)
 
-    def _save_to_local(self, file, filename):
-        target_dir = Path(self.upload_root)
-        target_dir.mkdir(parents=True, exist_ok=True)
+    def _save_to_local(self, file, filename, folder_name='general'):
+        target_dir = self._resolve_subdir(folder_name)
         safe_name = secure_filename(filename)
         suffix = Path(safe_name).suffix.lower()
         target_path = target_dir / f"{uuid4().hex}{suffix}"

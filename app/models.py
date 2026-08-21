@@ -1,3 +1,5 @@
+import re
+
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
@@ -44,6 +46,11 @@ class Role(db.Model):
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
+    __table_args__ = (
+        db.Index('ix_users_tenant_id', 'tenant_id'),
+        db.Index('ix_users_role_id', 'role_id'),
+        db.Index('ix_users_email', 'email'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
@@ -60,7 +67,22 @@ class User(UserMixin, db.Model):
 
     role = db.relationship('Role', backref='users')
 
+    @staticmethod
+    def validate_password_strength(password):
+        if len(password) < 12:
+            raise ValueError('Password must be at least 12 characters long.')
+        if not re.search(r'[A-Z]', password):
+            raise ValueError('Password must contain at least one uppercase letter.')
+        if not re.search(r'[a-z]', password):
+            raise ValueError('Password must contain at least one lowercase letter.')
+        if not re.search(r'\d', password):
+            raise ValueError('Password must contain at least one number.')
+        if not re.search(r'[^A-Za-z0-9]', password):
+            raise ValueError('Password must contain at least one special character.')
+        return True
+
     def set_password(self, password):
+        self.validate_password_strength(password)
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
@@ -70,8 +92,33 @@ class User(UserMixin, db.Model):
         return f'<User {self.email}>'
 
 
+class PasswordResetToken(db.Model):
+    __tablename__ = 'password_reset_tokens'
+    __table_args__ = (
+        db.Index('ix_password_reset_tokens_user_id', 'user_id'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    token = db.Column(db.String(128), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship('User', backref='password_reset_tokens')
+
+    def is_valid(self):
+        return self.used_at is None and datetime.utcnow() < self.expires_at
+
+    def __repr__(self):
+        return f'<PasswordResetToken {self.user_id}:{self.token}>'
+
+
 class UserGroup(db.Model):
     __tablename__ = 'user_groups'
+    __table_args__ = (
+        db.Index('ix_user_groups_tenant_id', 'tenant_id'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
@@ -102,6 +149,9 @@ class UserGroupMembership(db.Model):
 
 class Asset(db.Model):
     __tablename__ = 'assets'
+    __table_args__ = (
+        db.Index('ix_assets_tenant_id', 'tenant_id'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)
@@ -122,6 +172,10 @@ class Asset(db.Model):
 
 class Risk(db.Model):
     __tablename__ = 'risks'
+    __table_args__ = (
+        db.Index('ix_risks_tenant_id', 'tenant_id'),
+        db.Index('ix_risks_status', 'status'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)
@@ -153,6 +207,9 @@ class Risk(db.Model):
 
 class Policy(db.Model):
     __tablename__ = 'policies'
+    __table_args__ = (
+        db.Index('ix_policies_tenant_id', 'tenant_id'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)
