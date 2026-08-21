@@ -8,15 +8,24 @@ import mimetypes
 import os
 from datetime import datetime, timedelta
 
+import uuid
+
 import pyotp
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file, session, abort
 from flask_login import login_required, login_user, logout_user, current_user
 from werkzeug.utils import secure_filename
 
 from app import db
+from app.services import (
+    complete_password_reset,
+    create_tenant_user,
+    register_user_account,
+    request_password_reset,
+    update_user_profile,
+)
 from app.storage import get_storage_service, validate_upload, validate_video_upload
 from app.models import (
-    Tenant, Asset, Risk, Policy, WorkInstruction, SecurityAwarenessCampaign, AwarenessAssignment, Control, Finding, CorrectiveAction, Evidence, User, UserGroup, UserGroupMembership, AuditEvent, Role, ApprovalMatrix, ApprovalRecord
+    Tenant, Asset, Risk, Policy, WorkInstruction, SecurityAwarenessCampaign, AwarenessAssignment, Control, Finding, CorrectiveAction, Evidence, User, UserGroup, UserGroupMembership, AuditEvent, Role, ApprovalMatrix, ApprovalRecord, PasswordResetToken
 )
 
 main = Blueprint('main', __name__)
@@ -32,6 +41,21 @@ def get_tenant_scope(model):
     return True
 
 
+def user_has_role(user, *allowed_roles):
+    if not user or not getattr(user, 'is_authenticated', False):
+        return False
+    role_name = user.role.name if user.role else 'user'
+    return role_name in allowed_roles or role_name == 'admin'
+
+
+def can_access_user(target_user):
+    if target_user is None:
+        return False
+    if current_user.id == target_user.id:
+        return True
+    return user_has_role(current_user, 'admin', 'security_manager')
+
+
 def require_roles(*allowed_roles):
     def decorator(func):
         @wraps(func)
@@ -40,8 +64,7 @@ def require_roles(*allowed_roles):
             if not current_user.is_authenticated:
                 flash('Please log in to continue.')
                 return redirect(url_for('main.login'))
-            user_role = current_user.role.name if current_user.role else 'user'
-            if user_role not in allowed_roles and user_role != 'admin':
+            if not user_has_role(current_user, *allowed_roles):
                 flash('You do not have permission to access this page.')
                 return redirect(url_for('main.index'))
             return func(*args, **kwargs)
@@ -102,6 +125,53 @@ def overview():
     )
 
 
+@main.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        reset_token = request_password_reset(email)
+        if reset_token:
+            flash(f'A password reset link was created for {reset_token.user.email}. Use the token in the app flow to continue.')
+        else:
+            flash('If that account exists, a reset link will be sent.')
+        return render_template('forgot_password.html')
+
+    return render_template('forgot_password.html')
+
+
+@main.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+
+    reset_token = PasswordResetToken.query.filter_by(token=token).first()
+    if not reset_token or not reset_token.is_valid():
+        flash('This password reset link is invalid or expired.')
+        return redirect(url_for('main.login'))
+
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+
+        if password != confirm_password:
+            flash('Passwords do not match.')
+            return render_template('reset_password.html', token=token)
+
+        try:
+            complete_password_reset(reset_token, password)
+        except ValueError as exc:
+            flash(str(exc))
+            return render_template('reset_password.html', token=token)
+
+        flash('Your password was updated successfully.')
+        return redirect(url_for('main.login'))
+
+    return render_template('reset_password.html', token=token)
+
+
 @main.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -121,32 +191,11 @@ def register():
             flash('Passwords do not match.')
             return render_template('register.html')
 
-        if User.query.filter_by(email=email).first():
-            flash('A user with that email already exists.')
+        try:
+            user = register_user_account(full_name, email, password)
+        except ValueError as exc:
+            flash(str(exc))
             return render_template('register.html')
-
-        tenant = Tenant.query.order_by(Tenant.id.asc()).first()
-        if tenant is None:
-            tenant = Tenant(name=os.getenv('TENANT_NAME', 'Default Tenant'), slug=os.getenv('TENANT_SLUG', 'default-tenant'), status='active')
-            db.session.add(tenant)
-            db.session.commit()
-
-        role = Role.query.filter_by(tenant_id=tenant.id, name='user').first()
-        if role is None:
-            role = Role(tenant_id=tenant.id, name='user', description='Standard user')
-            db.session.add(role)
-            db.session.commit()
-
-        user = User(
-            tenant_id=tenant.id,
-            email=email,
-            full_name=full_name,
-            role_id=role.id,
-            is_active=True,
-        )
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
 
         log_audit_event(user, 'user', user.id, 'registered', before_value=None, after_value=user.email)
         login_user(user)
@@ -287,36 +336,13 @@ def profile_edit():
         email = request.form.get('email', '').strip().lower()
         profile_photo = request.files.get('profile_photo')
 
-        if not full_name or not email:
-            flash('Full name and email are required.')
+        try:
+            updated_user = update_user_profile(user, full_name, email, profile_photo)
+        except ValueError as exc:
+            flash(str(exc))
             return render_template('profile_edit.html', user=user)
 
-        if email != user.email and User.query.filter_by(email=email).first():
-            flash('A user with that email already exists.')
-            return render_template('profile_edit.html', user=user)
-
-        user.full_name = full_name
-        user.email = email
-
-        if profile_photo and getattr(profile_photo, 'filename', ''):
-            filename = secure_filename(profile_photo.filename)
-            ext = os.path.splitext(filename)[1].lower()
-            if ext not in {'.png', '.jpg', '.jpeg'}:
-                flash('Profile photo must be a PNG or JPG image.')
-                return render_template('profile_edit.html', user=user)
-
-            try:
-                validate_upload(profile_photo)
-            except ValueError as exc:
-                flash(str(exc))
-                return render_template('profile_edit.html', user=user)
-
-            storage = get_storage_service(current_app)
-            saved_path = storage.save(profile_photo, filename)
-            user.profile_photo_path = saved_path
-
-        db.session.commit()
-        log_audit_event(user, 'user', user.id, 'profile_updated', before_value=user.email, after_value=user.email)
+        log_audit_event(updated_user, 'user', updated_user.id, 'profile_updated', before_value=user.email, after_value=updated_user.email)
         flash('Your profile was updated successfully.')
         return redirect(url_for('main.profile'))
 
@@ -327,7 +353,7 @@ def profile_edit():
 @login_required
 def user_detail(user_id):
     user = User.query.filter_by(id=user_id, tenant_id=current_user.tenant_id).first_or_404()
-    if current_user.id != user.id and not (current_user.role and current_user.role.name in {'admin', 'security_manager'}):
+    if not can_access_user(user):
         flash('You do not have permission to view that profile.')
         return redirect(url_for('main.profile'))
     groups = user.groups.all() if hasattr(user.groups, 'all') else []
@@ -354,28 +380,14 @@ def user_new():
         role_id = request.form.get('role_id')
         is_active = request.form.get('is_active') == '1'
 
-        if not full_name or not email or not password:
-            flash('Name, email, and password are required.')
-            return render_template('user_form.html', roles=roles)
-
-        if User.query.filter_by(email=email).first():
-            flash('A user with that email already exists.')
-            return render_template('user_form.html', roles=roles)
-
         selected_role = Role.query.filter_by(id=role_id, tenant_id=current_user.tenant_id).first()
-        if not selected_role:
-            selected_role = Role.query.filter_by(tenant_id=current_user.tenant_id, name='user').first()
+        role_name = selected_role.name if selected_role else 'user'
 
-        user = User(
-            tenant_id=current_user.tenant_id,
-            email=email,
-            full_name=full_name,
-            role_id=selected_role.id if selected_role else 1,
-            is_active=is_active,
-        )
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
+        try:
+            user = create_tenant_user(current_user.tenant_id, full_name, email, password, role_name=role_name, is_active=is_active)
+        except ValueError as exc:
+            flash(str(exc))
+            return render_template('user_form.html', roles=roles)
 
         log_audit_event(current_user, 'user', user.id, 'created', before_value=None, after_value=user.email)
         flash('User added successfully.')

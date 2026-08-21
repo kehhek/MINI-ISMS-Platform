@@ -6,8 +6,9 @@ from app import create_app, db
 from app.models import (
     Asset, ApprovalMatrix, ApprovalRecord, AwarenessAssignment, Control, CorrectiveAction,
     Evidence, Finding, Policy, Risk, SecurityAwarenessCampaign, User, UserGroup,
-    WorkInstruction,
+    PasswordResetToken, WorkInstruction,
 )
+from app.services import complete_password_reset, register_user_account, request_password_reset
 
 
 class AdminSetupFlowTest(unittest.TestCase):
@@ -161,6 +162,21 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertTrue(user.check_password('StrongPass456!'))
         self.assertEqual(user.role.name, 'user')
 
+    def test_service_layer_registers_user_and_resets_password(self):
+        user = register_user_account('Service User', 'service-user@example.com', 'StrongPass789!')
+        self.assertIsNotNone(user)
+        self.assertEqual(user.full_name, 'Service User')
+        self.assertTrue(user.check_password('StrongPass789!'))
+
+        reset_token = request_password_reset('service-user@example.com')
+        self.assertIsNotNone(reset_token)
+        self.assertTrue(reset_token.is_valid())
+
+        complete_password_reset(reset_token, 'NewStrongPass456!')
+        db.session.expire_all()
+        refreshed = User.query.get(user.id)
+        self.assertTrue(refreshed.check_password('NewStrongPass456!'))
+
     def test_user_can_create_an_account(self):
         token = self.get_csrf_token()
         response = self.client.post('/register', data={
@@ -212,6 +228,39 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertIsNotNone(updated)
         self.assertEqual(updated.full_name, 'Updated Profile Name')
         self.assertTrue(updated.profile_photo_path)
+
+    def test_user_can_request_and_complete_password_reset(self):
+        user = User(
+            tenant_id=1,
+            email='reset-user@example.com',
+            full_name='Reset User',
+            role_id=4,
+            is_active=True,
+        )
+        user.set_password('OldPassStrong123!')
+        db.session.add(user)
+        db.session.commit()
+
+        request_response = self.client.post('/forgot-password', data={
+            'email': 'reset-user@example.com',
+            'csrf_token': self.get_csrf_token(),
+        }, follow_redirects=False)
+        self.assertEqual(request_response.status_code, 200)
+
+        reset_token = PasswordResetToken.query.filter_by(user_id=user.id).order_by(PasswordResetToken.created_at.desc()).first()
+        self.assertIsNotNone(reset_token)
+
+        reset_response = self.client.post(f'/reset-password/{reset_token.token}', data={
+            'password': 'NewStrongPass456!',
+            'confirm_password': 'NewStrongPass456!',
+            'csrf_token': self.get_csrf_token(),
+        }, follow_redirects=False)
+
+        self.assertEqual(reset_response.status_code, 302)
+        db.session.expire_all()
+        refreshed = User.query.get(user.id)
+        self.assertTrue(refreshed.check_password('NewStrongPass456!'))
+        self.assertFalse(refreshed.check_password('OldPassStrong123!'))
 
     def test_admin_can_delete_a_user(self):
         self.login_admin()
