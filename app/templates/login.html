@@ -3,22 +3,80 @@
 {% block title %}Login - Invaryant ISMS Platform{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center align-items-center min-vh-50 py-5">
-    <div class="col-lg-5 col-md-7">
-        <div class="auth-card">
-            <div class="auth-header text-center mb-4">
-                <div class="brand-mark mx-auto mb-3" aria-label="Invaryant logo">
-                    <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
-                        <g fill="none" stroke="rgba(148,163,184,0.9)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="60,12 102,36 102,84 60,108 18,84 18,36" />
-                            <polyline points="18,36 60,12 102,36" />
-                            <polyline points="18,84 60,108 102,84" />
-                            <polyline points="18,36 60,60 102,36" />
-                            <polyline points="18,84 60,60 102,84" />
-                            <polyline points="60,12 60,108" />
-                        </g>
-                    </svg>
+<div class="login-shell">
+    <div class="login-panel">
+        <div class="login-brand-panel">
+            <div class="login-brand-header">
+                <div class="brand-wrap login-brand-wrap">
+                    <div class="brand-mark login-brand-mark" aria-label="Invaryant logo">
+                        <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
+                            <g fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="60,12 102,36 102,84 60,108 18,84 18,36" />
+                                <polyline points="18,36 60,12 102,36" />
+                                <polyline points="18,84 60,108 102,84" />
+                                <polyline points="18,36 60,60 102,36" />
+                                <polyline points="18,84 60,60 102,84" />
+                                <polyline points="60,12 60,108" />
+                            </g>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="eyebrow login-eyebrow">Governance Suite</div>
+                        <h1>Invaryant</h1>
+                    </div>
                 </div>
+                <span class="secure-access-badge">Secure access</span>
+            </div>
+
+            <div class="login-brand-copy">
+                <p class="login-kicker">Enterprise ISMS</p>
+                <h2>Control risk, compliance, and security in one place.</h2>
+                <p>Manage policy evidence, mitigation activities, and oversight with a secure governance workspace built for modern organizations.</p>
+            </div>
+
+            <div class="stats-strip">
+                <div class="stat-mini">
+                    <strong>99.9%</strong>
+                    <span>Uptime</span>
+                </div>
+                <div class="stat-mini">
+                    <strong>24/7</strong>
+                    <span>Monitoring</span>
+                </div>
+                <div class="stat-mini">
+                    <strong>ISO-ready</strong>
+                    <span>Controls</span>
+                </div>
+            </div>
+
+            <div class="trust-grid">
+                <div class="trust-item">
+                    <span class="trust-icon success">✓</span>
+                    <div>
+                        <strong>MFA Ready</strong>
+                        <small>Protected access</small>
+                    </div>
+                </div>
+                <div class="trust-item">
+                    <span class="trust-icon primary">⛨</span>
+                    <div>
+                        <strong>Audit Ready</strong>
+                        <small>Evidence tracking</small>
+                    </div>
+                </div>
+                <div class="trust-item">
+                    <span class="trust-icon neutral">◎</span>
+                    <div>
+                        <strong>Policy Driven</strong>
+                        <small>Operational clarity</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="login-form-panel">
+            <div class="auth-header text-center mb-4">
+                <p class="text-uppercase fw-bold text-primary mb-2 login-small-kicker">Secure sign in</p>
                 <h2 class="mb-1">Welcome back</h2>
                 <p class="text-muted mb-0">Sign in to your Invaryant workspace</p>
             </div>
@@ -33,7 +91,7 @@
                 {% endif %}
             {% endwith %}
 
-            <form method="POST">
+            <form method="POST" class="login-form">
                 <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
                 <div class="form-group mb-3">
                     <label for="email">Email</label>
@@ -45,9 +103,20 @@
                     <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100">Sign in</button>
+                <div class="login-form-row">
+                    <label class="remember-me">
+                        <input type="checkbox" name="remember">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="/forgot-password">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 login-submit">Sign in</button>
             </form>
 
+            <div class="login-footer-note">
+                Protected by enterprise monitoring and access controls.
+            </div>
         </div>
     </div>
 </div>

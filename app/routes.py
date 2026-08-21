@@ -22,6 +22,7 @@ from app.services import (
     create_tenant_user,
     register_user_account,
     request_password_reset,
+    send_email,
     update_user_profile,
 )
 from app.storage import get_storage_service, validate_upload, validate_video_upload
@@ -98,6 +99,25 @@ def log_audit_event(user, entity_type, entity_id, action, before_value=None, aft
     )
     db.session.add(event)
     db.session.commit()
+
+
+def send_login_success_email(user):
+    if user is None or not getattr(user, 'email', None):
+        return False
+
+    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+    subject = 'Successful sign-in notification'
+    body = (
+        f'Hello {user.full_name},\n\n'
+        f'This is a confirmation that your Invaryant account was used to sign in successfully at {timestamp}.\n\n'
+        'If this was not you, please reset your password immediately and review your account activity.'
+    )
+    html_body = (
+        f'<p>Hello {user.full_name},</p>'
+        f'<p>This is a confirmation that your Invaryant account was used to sign in successfully at {timestamp}.</p>'
+        '<p>If this was not you, please reset your password immediately and review your account activity.</p>'
+    )
+    return send_email(subject, [user.email], body, html_body)
 
 
 @main.route('/')
@@ -236,7 +256,7 @@ def login():
             user.last_login_at = datetime.utcnow()
             db.session.commit()
             log_audit_event(user, 'user', user.id, 'login')
-            flash('Welcome back.')
+            send_login_success_email(user)
             return redirect(url_for('main.dashboard'))
 
         attempts.append(now)
@@ -263,7 +283,7 @@ def mfa_verify():
             user.last_login_at = datetime.utcnow()
             db.session.commit()
             log_audit_event(user, 'user', user.id, 'login_mfa')
-            flash('Welcome back.')
+            send_login_success_email(user)
             return redirect(url_for('main.dashboard'))
         flash('Invalid MFA code.')
 

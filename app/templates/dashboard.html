@@ -1,20 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3 dashboard-header">
     <div>
-        <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Executive overview</p>
-        <h2 class="mb-1">Compliance Dashboard</h2>
-        <p class="text-muted mb-0">A quick read on program health, risk posture, and control coverage across the ISMS.</p>
+        <p class="text-uppercase fw-bold text-primary mb-2 dashboard-eyebrow">Executive overview</p>
+        <h2 class="mb-1 dashboard-title">Compliance Dashboard</h2>
+        <p class="text-muted mb-0 dashboard-subtitle">A quick read on program health, risk posture, and control coverage across the ISMS.</p>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="d-flex gap-2 flex-wrap dashboard-actions">
+        <span class="status-chip"><span class="status-dot"></span>Live snapshot</span>
         <a href="/overview" class="btn btn-secondary">Overview</a>
         <a href="/reports" class="btn btn-primary">Reports</a>
     </div>
 </div>
 
-<div class="row g-3 mb-4">
+<div class="row g-4 mb-4">
     <div class="col-md-3">
         <div class="card dashboard-stat success p-3">
+            <div class="dashboard-stat-top">
+                <span class="kpi-icon success">✓</span>
+                <span class="trend-badge positive">+6.2%</span>
+            </div>
             <h5>Controls Implemented</h5>
             <h2>{{ control_implementation_pct }}%</h2>
             <small class="text-muted">Control coverage rate</small>
@@ -22,6 +27,10 @@
     </div>
     <div class="col-md-3">
         <div class="card dashboard-stat warning p-3">
+            <div class="dashboard-stat-top">
+                <span class="kpi-icon warning">!</span>
+                <span class="trend-badge neutral">-2</span>
+            </div>
             <h5>Open Findings</h5>
             <h2>{{ open_findings_count }}</h2>
             <small class="text-muted">Needs attention this cycle</small>
@@ -29,6 +38,10 @@
     </div>
     <div class="col-md-3">
         <div class="card dashboard-stat danger p-3">
+            <div class="dashboard-stat-top">
+                <span class="kpi-icon danger">⏰</span>
+                <span class="trend-badge negative">+1</span>
+            </div>
             <h5>Overdue Actions</h5>
             <h2>{{ overdue_actions_count }}</h2>
             <small class="text-muted">Past due remedial work</small>
@@ -36,6 +49,10 @@
     </div>
     <div class="col-md-3">
         <div class="card dashboard-stat danger p-3">
+            <div class="dashboard-stat-top">
+                <span class="kpi-icon danger">▲</span>
+                <span class="trend-badge negative">High</span>
+            </div>
             <h5>High/Critical Risks</h5>
             <h2>{{ high_risk_count }}</h2>
             <small class="text-muted">Priority exposure items</small>
@@ -43,7 +60,7 @@
     </div>
 </div>
 
-<div class="row g-4">
+<div class="row g-4 mb-4">
     <div class="col-md-4">
         <div class="chart-card">
             <h5 class="mb-3">Findings by Severity</h5>
@@ -60,6 +77,58 @@
         <div class="chart-card">
             <h5 class="mb-3">Risk Distribution</h5>
             <canvas id="riskChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <div class="col-12">
+        <div class="priority-panel">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                    <p class="section-kicker mb-1">Priority</p>
+                    <h5 class="mb-0">Priority actions</h5>
+                </div>
+                <span class="priority-pill">4 focus items</span>
+            </div>
+
+            <div class="priority-list">
+                <div class="priority-item">
+                    <span class="priority-number">01</span>
+                    <div class="priority-copy">
+                        <h6>Resolve overdue firewall remediation</h6>
+                        <p>Due in 3 days • Owner: Infrastructure Team</p>
+                    </div>
+                    <span class="priority-tag high">High</span>
+                </div>
+
+                <div class="priority-item">
+                    <span class="priority-number">02</span>
+                    <div class="priority-copy">
+                        <h6>Close critical access review gaps</h6>
+                        <p>Due by Friday • Owner: IAM Lead</p>
+                    </div>
+                    <span class="priority-tag high">High</span>
+                </div>
+
+                <div class="priority-item">
+                    <span class="priority-number">03</span>
+                    <div class="priority-copy">
+                        <h6>Review backup restore drill evidence</h6>
+                        <p>Due next week • Owner: Operations</p>
+                    </div>
+                    <span class="priority-tag medium">Medium</span>
+                </div>
+
+                <div class="priority-item">
+                    <span class="priority-number">04</span>
+                    <div class="priority-copy">
+                        <h6>Track control coverage improvement plan</h6>
+                        <p>Monthly review • Owner: Compliance Office</p>
+                    </div>
+                    <span class="priority-tag medium">Medium</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>

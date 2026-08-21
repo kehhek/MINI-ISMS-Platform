@@ -1,6 +1,7 @@
 import os
 import unittest
 from io import BytesIO
+from unittest.mock import patch
 
 from app import create_app, db
 from app.models import (
@@ -59,6 +60,20 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertIsNotNone(user)
         self.assertTrue(user.check_password('StrongPass123!'))
         self.assertEqual(user.role.name, 'admin')
+
+    def test_successful_login_does_not_flash_and_sends_email_notification(self):
+        token = self.get_csrf_token()
+
+        with patch('app.routes.send_email') as mock_send_email:
+            response = self.client.post('/login', data={
+                'email': 'admin@example.com',
+                'password': 'StrongPass123!',
+                'csrf_token': token,
+            }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b'Welcome back.', response.data)
+        mock_send_email.assert_called_once()
 
     def test_default_admin_is_not_created_without_environment_credentials(self):
         os.environ.pop('ADMIN_EMAIL', None)
