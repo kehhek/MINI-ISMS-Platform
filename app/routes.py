@@ -479,12 +479,30 @@ def user_delete(user_id):
         flash('You cannot delete your own account.')
         return redirect(url_for('main.users_list'))
 
-    if ApprovalRecord.query.filter_by(approver_id=user.id).first():
-        flash('This user has approval records and cannot be deleted until those records are reassigned or removed.')
-        return redirect(url_for('main.users_list'))
-
+    # Clear user-owned records before removing the account so foreign-key constraints do not
+    # trigger a 500 error during delete.
+    ApprovalRecord.query.filter_by(approver_id=user.id).delete()
+    AuditEvent.query.filter_by(user_id=user.id).update({'user_id': None})
+    PasswordResetToken.query.filter_by(user_id=user.id).delete()
     UserGroupMembership.query.filter_by(user_id=user.id).delete()
     AwarenessAssignment.query.filter_by(user_id=user.id).delete()
+
+    nullable_references = [
+        (Asset, 'created_by_user_id'),
+        (Risk, 'approved_by_user_id'),
+        (Risk, 'created_by_user_id'),
+        (Policy, 'created_by_user_id'),
+        (WorkInstruction, 'created_by_user_id'),
+        (SecurityAwarenessCampaign, 'created_by_user_id'),
+        (Control, 'created_by_user_id'),
+        (Finding, 'created_by_user_id'),
+        (CorrectiveAction, 'created_by_user_id'),
+        (Evidence, 'uploaded_by_user_id'),
+    ]
+
+    for model, field_name in nullable_references:
+        model.query.filter_by(**{field_name: user.id}).update({field_name: None})
+
     db.session.delete(user)
     db.session.commit()
 

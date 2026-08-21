@@ -193,6 +193,57 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertEqual(updated_user.role.name, 'auditor')
         self.assertFalse(updated_user.is_active)
 
+    def test_admin_can_delete_user_with_related_records(self):
+        user = User(
+            tenant_id=1,
+            email='delete-me@example.com',
+            full_name='Delete Me',
+            role_id=4,
+            is_active=True,
+        )
+        user.set_password('StrongPass456!')
+        db.session.add(user)
+        db.session.commit()
+
+        group = UserGroup(tenant_id=1, name='Delete Test Group')
+        db.session.add(group)
+        db.session.commit()
+        group.users.append(user)
+
+        campaign = SecurityAwarenessCampaign(
+            tenant_id=1,
+            title='Delete User Campaign',
+            month_label='May 2026',
+            video_title='Delete User Video',
+            description='Campaign for deletion test',
+            status='Scheduled',
+        )
+        db.session.add(campaign)
+        db.session.commit()
+        db.session.add(AwarenessAssignment(
+            tenant_id=1,
+            campaign_id=campaign.id,
+            user_id=user.id,
+            status='Assigned',
+        ))
+
+        db.session.add(ApprovalRecord(
+            tenant_id=1,
+            entity_type='risk',
+            entity_id=1,
+            action='approve',
+            approver_id=user.id,
+            decision='approve',
+        ))
+        db.session.commit()
+
+        self.login_admin()
+        token = self.get_csrf_token()
+        response = self.client.post(f'/users/{user.id}/delete', data={'csrf_token': token}, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(User.query.get(user.id))
+
     def test_admin_can_edit_security_manager_profile_from_detail_view(self):
         user = User(
             tenant_id=1,
