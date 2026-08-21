@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - Invaryant ISMS Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-uppercase fw-bold text-primary mb-2" style="letter-spacing: 0.12em; font-size: 0.75rem;">Account</p>
+        <h2 class="mb-0">Edit profile</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ session['_csrf_token'] }}">
+
+            <div class="row g-4 align-items-center mb-4">
+                <div class="col-md-3 text-center">
+                    {% if user.profile_photo_path and user.profile_photo_path|length %}
+                        <img src="{{ url_for('main.user_profile_photo', user_id=user.id) }}" alt="Profile photo" class="rounded-circle border" style="width: 110px; height: 110px; object-fit: cover;">
+                    {% else %}
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto" style="width: 110px; height: 110px; font-size: 2.5rem; font-weight: 600;">
+                            {{ user.full_name[0]|upper if user.full_name else 'U' }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-9">
+                    <label for="profile_photo" class="form-label">Profile photo</label>
+                    <input type="file" class="form-control" id="profile_photo" name="profile_photo" accept="image/png,image/jpeg">
+                    <div class="form-text">Upload a PNG or JPG image. Recommended size: square crop.</div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="full_name" class="form-label">Full name</label>
+                    <input type="text" class="form-control" id="full_name" name="full_name" value="{{ user.full_name }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">Save changes</button>
+                <a href="{{ url_for('main.profile') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

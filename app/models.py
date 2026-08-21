@@ -54,6 +54,7 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True)
     mfa_enabled = db.Column(db.Boolean, default=False)
     mfa_secret = db.Column(db.String(64), nullable=True)
+    profile_photo_path = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login_at = db.Column(db.DateTime, nullable=True)
 

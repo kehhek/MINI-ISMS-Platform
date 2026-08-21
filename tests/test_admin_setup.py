@@ -161,6 +161,58 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertTrue(user.check_password('StrongPass456!'))
         self.assertEqual(user.role.name, 'user')
 
+    def test_user_can_create_an_account(self):
+        token = self.get_csrf_token()
+        response = self.client.post('/register', data={
+            'full_name': 'New Sign Up User',
+            'email': 'signup@example.com',
+            'password': 'StrongPass789!',
+            'confirm_password': 'StrongPass789!',
+            'csrf_token': token,
+        }, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        user = User.query.filter_by(email='signup@example.com').first()
+        self.assertIsNotNone(user)
+        self.assertEqual(user.full_name, 'New Sign Up User')
+        self.assertTrue(user.check_password('StrongPass789!'))
+        self.assertEqual(user.role.name, 'user')
+
+    def test_user_can_update_profile_and_photo(self):
+        user = User(
+            tenant_id=1,
+            email='profile-user@example.com',
+            full_name='Old Name',
+            role_id=4,
+            is_active=True,
+        )
+        user.set_password('StrongPass456!')
+        db.session.add(user)
+        db.session.commit()
+
+        token = self.get_csrf_token()
+        login_response = self.client.post('/login', data={
+            'email': 'profile-user@example.com',
+            'password': 'StrongPass456!',
+            'csrf_token': token,
+        }, follow_redirects=False)
+        self.assertEqual(login_response.status_code, 302)
+
+        token = self.get_csrf_token()
+        response = self.client.post('/profile/edit', data={
+            'full_name': 'Updated Profile Name',
+            'email': 'profile-user@example.com',
+            'profile_photo': (BytesIO(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR'), 'avatar.png'),
+            'csrf_token': token,
+        }, content_type='multipart/form-data', follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        db.session.expire_all()
+        updated = User.query.filter_by(email='profile-user@example.com').first()
+        self.assertIsNotNone(updated)
+        self.assertEqual(updated.full_name, 'Updated Profile Name')
+        self.assertTrue(updated.profile_photo_path)
+
     def test_admin_can_delete_a_user(self):
         self.login_admin()
 

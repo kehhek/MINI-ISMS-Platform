@@ -21,7 +21,7 @@ def add_missing_columns_for_legacy_db():
     table_columns = {
         'tenants': [],
         'roles': ['tenant_id'],
-        'users': ['tenant_id', 'role_id', 'is_active', 'mfa_enabled', 'mfa_secret', 'last_login_at'],
+        'users': ['tenant_id', 'role_id', 'is_active', 'mfa_enabled', 'mfa_secret', 'profile_photo_path', 'last_login_at'],
         'assets': ['tenant_id', 'created_by_user_id'],
         'risks': ['tenant_id', 'created_by_user_id', 'approval_status', 'approved_by_user_id', 'approved_at', 'approval_reason', 'signature_hash', 'locked_at'],
         'policies': ['tenant_id', 'created_by_user_id', 'document_filename', 'document_path', 'mime_type', 'file_size'],
@@ -59,6 +59,8 @@ def add_missing_columns_for_legacy_db():
                 db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} DATETIME'))
             elif column_name in {'mfa_secret'}:
                 db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} VARCHAR(64)'))
+            elif column_name in {'profile_photo_path'}:
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} TEXT'))
             elif column_name in {'document_filename', 'document_path', 'mime_type'}:
                 db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} TEXT'))
             elif column_name in {'file_size'}:

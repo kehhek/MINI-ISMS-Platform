@@ -4,6 +4,7 @@ from io import StringIO
 import csv
 import hashlib
 import json
+import mimetypes
 import os
 from datetime import datetime, timedelta
 
@@ -99,6 +100,60 @@ def overview():
         total_findings=total_findings,
         total_evidence=total_evidence,
     )
+
+
+@main.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+
+    if request.method == 'POST':
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+
+        if not full_name or not email or not password:
+            flash('Name, email, and password are required.')
+            return render_template('register.html')
+
+        if password != confirm_password:
+            flash('Passwords do not match.')
+            return render_template('register.html')
+
+        if User.query.filter_by(email=email).first():
+            flash('A user with that email already exists.')
+            return render_template('register.html')
+
+        tenant = Tenant.query.order_by(Tenant.id.asc()).first()
+        if tenant is None:
+            tenant = Tenant(name=os.getenv('TENANT_NAME', 'Default Tenant'), slug=os.getenv('TENANT_SLUG', 'default-tenant'), status='active')
+            db.session.add(tenant)
+            db.session.commit()
+
+        role = Role.query.filter_by(tenant_id=tenant.id, name='user').first()
+        if role is None:
+            role = Role(tenant_id=tenant.id, name='user', description='Standard user')
+            db.session.add(role)
+            db.session.commit()
+
+        user = User(
+            tenant_id=tenant.id,
+            email=email,
+            full_name=full_name,
+            role_id=role.id,
+            is_active=True,
+        )
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+
+        log_audit_event(user, 'user', user.id, 'registered', before_value=None, after_value=user.email)
+        login_user(user)
+        flash('Your account has been created successfully.')
+        return redirect(url_for('main.dashboard'))
+
+    return render_template('register.html')
 
 
 @main.route('/login', methods=['GET', 'POST'])
@@ -210,6 +265,62 @@ def profile():
     user = User.query.filter_by(id=current_user.id, tenant_id=current_user.tenant_id).first_or_404()
     groups = user.groups.all() if hasattr(user.groups, 'all') else []
     return render_template('user_profile.html', user=user, groups=groups)
+
+
+@main.route('/profile/photo/<int:user_id>')
+@login_required
+def user_profile_photo(user_id):
+    user = User.query.filter_by(id=user_id, tenant_id=current_user.tenant_id).first_or_404()
+    if not user.profile_photo_path or not os.path.exists(user.profile_photo_path):
+        abort(404)
+    mime_type, _ = mimetypes.guess_type(user.profile_photo_path)
+    return send_file(user.profile_photo_path, mimetype=mime_type or 'image/jpeg')
+
+
+@main.route('/profile/edit', methods=['GET', 'POST'])
+@login_required
+def profile_edit():
+    user = User.query.filter_by(id=current_user.id, tenant_id=current_user.tenant_id).first_or_404()
+
+    if request.method == 'POST':
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        profile_photo = request.files.get('profile_photo')
+
+        if not full_name or not email:
+            flash('Full name and email are required.')
+            return render_template('profile_edit.html', user=user)
+
+        if email != user.email and User.query.filter_by(email=email).first():
+            flash('A user with that email already exists.')
+            return render_template('profile_edit.html', user=user)
+
+        user.full_name = full_name
+        user.email = email
+
+        if profile_photo and getattr(profile_photo, 'filename', ''):
+            filename = secure_filename(profile_photo.filename)
+            ext = os.path.splitext(filename)[1].lower()
+            if ext not in {'.png', '.jpg', '.jpeg'}:
+                flash('Profile photo must be a PNG or JPG image.')
+                return render_template('profile_edit.html', user=user)
+
+            try:
+                validate_upload(profile_photo)
+            except ValueError as exc:
+                flash(str(exc))
+                return render_template('profile_edit.html', user=user)
+
+            storage = get_storage_service(current_app)
+            saved_path = storage.save(profile_photo, filename)
+            user.profile_photo_path = saved_path
+
+        db.session.commit()
+        log_audit_event(user, 'user', user.id, 'profile_updated', before_value=user.email, after_value=user.email)
+        flash('Your profile was updated successfully.')
+        return redirect(url_for('main.profile'))
+
+    return render_template('profile_edit.html', user=user)
 
 
 @main.route('/users/<int:user_id>')
