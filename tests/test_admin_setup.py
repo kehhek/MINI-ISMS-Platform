@@ -193,6 +193,24 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertEqual(updated_user.role.name, 'auditor')
         self.assertFalse(updated_user.is_active)
 
+    def test_admin_can_edit_security_manager_profile_from_detail_view(self):
+        user = User(
+            tenant_id=1,
+            email='security-manager-edit@example.com',
+            full_name='Security Manager Edit',
+            role_id=2,
+            is_active=True,
+        )
+        user.set_password('StrongPass456!')
+        db.session.add(user)
+        db.session.commit()
+
+        self.login_admin()
+
+        response = self.client.get(f'/users/{user.id}')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('/users/{}/edit'.format(user.id), response.get_data(as_text=True))
+
     def test_service_layer_registers_user_and_resets_password(self):
         user = register_user_account('Service User', 'service-user@example.com', 'StrongPass789!')
         self.assertIsNotNone(user)

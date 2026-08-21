@@ -13,6 +13,10 @@
         <a href="/profile/edit" class="btn btn-outline-primary">Edit profile</a>
         <a href="/settings/mfa" class="btn btn-outline-primary">Manage MFA</a>
     </div>
+    {% elif current_user.is_authenticated and (current_user.id == user.id or current_user.role and current_user.role.name in ['admin', 'security_manager']) %}
+    <div class="d-flex gap-2">
+        <a href="/users/{{ user.id }}/edit" class="btn btn-outline-primary">Edit profile</a>
+    </div>
     {% endif %}
 </div>
 
