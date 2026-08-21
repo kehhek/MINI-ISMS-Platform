@@ -6,9 +6,10 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from flask import current_app
+from flask_mail import Message
 from werkzeug.utils import secure_filename
 
-from app import db
+from app import db, mail
 from app.models import (
     CorrectiveAction,
     Finding,
@@ -101,6 +102,30 @@ def create_tenant_user(tenant_id: int, full_name: str, email: str, password: str
     return user
 
 
+def send_email(subject: str, recipients: list[str], body: str, html_body: str | None = None):
+    if not recipients:
+        return False
+
+    mail_config = current_app.config
+    if mail_config.get('MAIL_SUPPRESS_SEND'):
+        print(f'Email suppressed: {subject} -> {recipients[0]}')
+        print(body)
+        return True
+
+    msg = Message(subject=subject, recipients=recipients, body=body, html=html_body)
+    sender = mail_config.get('MAIL_DEFAULT_SENDER')
+    if sender:
+        msg.sender = sender
+
+    try:
+        mail.send(msg)
+        return True
+    except Exception as exc:  # pragma: no cover - SMTP connectivity is environment dependent.
+        print(f'Failed to send email via SMTP: {exc}')
+        print(body)
+        return False
+
+
 def request_password_reset(email: str):
     normalized_email = (email or '').strip().lower()
     user = User.query.filter_by(email=normalized_email).first()
@@ -115,6 +140,21 @@ def request_password_reset(email: str):
     )
     db.session.add(reset_token)
     db.session.commit()
+
+    app_url = current_app.config.get('APP_URL', 'http://127.0.0.1:5050')
+    reset_url = f'{app_url.rstrip("/")}/reset-password/{token_value}'
+    message_body = (
+        f'Hello {user.full_name},\n\n'
+        f'You requested a password reset. Use the link below to continue:\n\n{reset_url}\n\n'
+        'This link expires in 1 hour.\n'
+    )
+    html_body = (
+        f'<p>Hello {user.full_name},</p>'
+        f'<p>You requested a password reset. Use the link below to continue:</p>'
+        f'<p><a href="{reset_url}">{reset_url}</a></p>'
+        '<p>This link expires in 1 hour.</p>'
+    )
+    send_email('Password reset request', [user.email], message_body, html_body)
     return reset_token
 
 

@@ -1,5 +1,6 @@
 from flask import Flask, session, request
 from flask_login import LoginManager
+from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import text
@@ -11,6 +12,7 @@ load_dotenv()
 
 db = SQLAlchemy()
 migrate = Migrate()
+mail = Mail()
 login_manager = LoginManager()
 
 
@@ -170,6 +172,14 @@ def create_app():
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True
     app.config['SESSION_PROTECTION'] = 'strong'
     app.config['PREFERRED_URL_SCHEME'] = 'https'
+    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'localhost')
+    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', '25'))
+    app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', '0') == '1'
+    app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', '0') == '1'
+    app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
+    app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
+    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@localhost')
+    app.config['MAIL_SUPPRESS_SEND'] = os.getenv('MAIL_SUPPRESS_SEND', '1' if os.getenv('APP_ENV') != 'production' else '0') == '1'
     app.config['STORAGE_BACKEND'] = os.getenv('STORAGE_BACKEND', 'local')
     app.config['STORAGE_BUCKET'] = os.getenv('STORAGE_BUCKET', 'invaryant-local')
     app.config['S3_ENDPOINT_URL'] = os.getenv('S3_ENDPOINT_URL')
@@ -218,6 +228,7 @@ def create_app():
 
     db.init_app(app)
     migrate.init_app(app, db)
+    mail.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'main.login'
 

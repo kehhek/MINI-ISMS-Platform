@@ -31,6 +31,21 @@ class AdminSetupFlowTest(unittest.TestCase):
         with self.client.session_transaction() as session:
             return session.get('_csrf_token')
 
+    def test_mail_configuration_is_loaded_from_environment(self):
+        os.environ['MAIL_SERVER'] = 'smtp.example.com'
+        os.environ['MAIL_PORT'] = '587'
+        os.environ['MAIL_USERNAME'] = 'alerts@example.com'
+        os.environ['MAIL_PASSWORD'] = 'secret-password'
+        os.environ['MAIL_DEFAULT_SENDER'] = 'no-reply@example.com'
+
+        app = create_app()
+        with app.app_context():
+            self.assertEqual(app.config['MAIL_SERVER'], 'smtp.example.com')
+            self.assertEqual(app.config['MAIL_PORT'], 587)
+            self.assertEqual(app.config['MAIL_USERNAME'], 'alerts@example.com')
+            self.assertEqual(app.config['MAIL_DEFAULT_SENDER'], 'no-reply@example.com')
+            self.assertIn('mail', app.extensions)
+
     def login_admin(self):
         token = self.get_csrf_token()
         return self.client.post('/login', data={
