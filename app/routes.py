@@ -812,7 +812,7 @@ def risk_delete(risk_id):
 @login_required
 def policies_list():
     policies = Policy.query.filter_by(tenant_id=current_user.tenant_id).all()
-    return render_template('policies_list.html', policies=policies)
+    return render_template('policies_list.html', policies=policies, now=datetime.utcnow())
 
 
 @main.route('/policies/new', methods=['GET', 'POST'])
@@ -923,7 +923,7 @@ def policy_download(policy_id):
 @login_required
 def work_instructions_list():
     work_instructions = WorkInstruction.query.filter_by(tenant_id=current_user.tenant_id).all()
-    return render_template('work_instructions_list.html', work_instructions=work_instructions)
+    return render_template('work_instructions_list.html', work_instructions=work_instructions, now=datetime.utcnow())
 
 
 @main.route('/work-instructions/new', methods=['GET', 'POST'])

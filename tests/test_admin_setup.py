@@ -75,6 +75,24 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertNotIn(b'Welcome back.', response.data)
         mock_send_email.assert_called_once()
 
+    def test_login_page_is_simple_and_has_no_account_creation_prompt(self):
+        response = self.client.get('/login')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b'Governance Suite', response.data)
+        self.assertNotIn(b'Create account', response.data)
+        self.assertNotIn(b'Sign up', response.data)
+        self.assertIn(b'Mini ISMS', response.data)
+        self.assertIn(b'Sign in', response.data)
+
+    def test_policy_work_instruction_and_evidence_pages_render_without_errors(self):
+        self.login_admin()
+
+        for path in ['/policies', '/work-instructions', '/evidence']:
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200, msg=f'{path} should render without an error')
+            self.assertNotIn(b'Internal Server Error', response.data)
+            self.assertNotIn(b'Welcome back', response.data)
+
     def test_default_admin_is_not_created_without_environment_credentials(self):
         os.environ.pop('ADMIN_EMAIL', None)
         os.environ.pop('ADMIN_PASSWORD', None)

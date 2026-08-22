@@ -3,14 +3,14 @@
 {% block title %}Login - Invaryant ISMS Platform{% endblock %}
 
 {% block content %}
-<div class="login-shell">
-    <div class="login-panel">
-        <div class="login-brand-panel">
-            <div class="login-brand-header">
-                <div class="brand-wrap login-brand-wrap">
-                    <div class="brand-mark login-brand-mark" aria-label="Invaryant logo">
+<div class="enterprise-login-shell">
+    <div class="enterprise-login-panel">
+        <div class="enterprise-brand-panel">
+            <div class="top-brand-row">
+                <div class="brand-row">
+                    <div class="brand-mark large-brand-mark" aria-label="Invaryant logo">
                         <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
-                            <g fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <g fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                                 <polygon points="60,12 102,36 102,84 60,108 18,84 18,36" />
                                 <polyline points="18,36 60,12 102,36" />
                                 <polyline points="18,84 60,108 102,84" />
@@ -20,65 +20,66 @@
                             </g>
                         </svg>
                     </div>
-                    <div>
-                        <div class="eyebrow login-eyebrow">Governance Suite</div>
-                        <h1>Invaryant</h1>
-                    </div>
+                    <div class="brand-eyebrow">Governance Suite</div>
                 </div>
-                <span class="secure-access-badge">Secure access</span>
-            </div>
 
-            <div class="login-brand-copy">
-                <p class="login-kicker">Enterprise ISMS</p>
-                <h2>Control risk, compliance, and security in one place.</h2>
-                <p>Manage policy evidence, mitigation activities, and oversight with a secure governance workspace built for modern organizations.</p>
-            </div>
-
-            <div class="stats-strip">
-                <div class="stat-mini">
-                    <strong>99.9%</strong>
-                    <span>Uptime</span>
-                </div>
-                <div class="stat-mini">
-                    <strong>24/7</strong>
-                    <span>Monitoring</span>
-                </div>
-                <div class="stat-mini">
-                    <strong>ISO-ready</strong>
-                    <span>Controls</span>
+                <div class="secure-chip">
+                    <span class="secure-dot"></span>
+                    Secure access
                 </div>
             </div>
 
-            <div class="trust-grid">
-                <div class="trust-item">
-                    <span class="trust-icon success">✓</span>
+            <h1 class="brand-name">Invaryant</h1>
+
+            <div class="brand-section-label">Enterprise ISMS</div>
+            <h2 class="brand-headline">Control risk, compliance,<br>and security in one place.</h2>
+            <p class="brand-copy">Manage policy evidence, mitigation activities, and oversight with a secure governance workspace built for modern organizations.</p>
+
+            <div class="metric-row">
+                <div class="metric-box">
+                    <div class="metric-value">99.9%</div>
+                    <div class="metric-label">Uptime</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-value">24/7</div>
+                    <div class="metric-label">Monitoring</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-value">ISO-ready</div>
+                    <div class="metric-label">Controls</div>
+                </div>
+            </div>
+
+            <div class="feature-stack">
+                <div class="feature-item feature-item-primary">
+                    <span class="feature-icon">✓</span>
                     <div>
-                        <strong>MFA Ready</strong>
-                        <small>Protected access</small>
+                        <div class="feature-title">MFA Ready</div>
+                        <div class="feature-subtitle">Protected access</div>
                     </div>
                 </div>
-                <div class="trust-item">
-                    <span class="trust-icon primary">⛨</span>
+                <div class="feature-item">
+                    <span class="feature-icon">⛨</span>
                     <div>
-                        <strong>Audit Ready</strong>
-                        <small>Evidence tracking</small>
+                        <div class="feature-title">Audit Ready</div>
+                        <div class="feature-subtitle">Evidence tracking</div>
                     </div>
                 </div>
-                <div class="trust-item">
-                    <span class="trust-icon neutral">◎</span>
+                <div class="feature-item">
+                    <span class="feature-icon">◎</span>
                     <div>
-                        <strong>Policy Driven</strong>
-                        <small>Operational clarity</small>
+                        <div class="feature-title">Policy Driven</div>
+                        <div class="feature-subtitle">Operational clarity</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="login-form-panel">
-            <div class="auth-header text-center mb-4">
-                <p class="text-uppercase fw-bold text-primary mb-2 login-small-kicker">Secure sign in</p>
-                <h2 class="mb-1">Welcome back</h2>
-                <p class="text-muted mb-0">Sign in to your Invaryant workspace</p>
+        <div class="enterprise-form-panel">
+            <div class="form-header">
+                <div class="form-tag">Secure sign in</div>
+                <h2>Welcome back</h2>
+                <p>Sign in to your Invaryant workspace</p>
             </div>
 
             {% with messages = get_flashed_messages() %}
@@ -91,32 +92,28 @@
                 {% endif %}
             {% endwith %}
 
-            <form method="POST" class="login-form">
+            <form method="POST" class="enterprise-login-form">
                 <input type="hidden" name="csrf_token" value="{{ session.get('_csrf_token') }}">
-                <div class="form-group mb-3">
+
+                <div class="enterprise-form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" class="form-control" placeholder="name@company.com" required>
+                    <input type="email" id="email" name="email" placeholder="name@company.com" required>
                 </div>
 
-                <div class="form-group mb-3">
+                <div class="enterprise-form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
                 </div>
 
-                <div class="login-form-row">
-                    <label class="remember-me">
-                        <input type="checkbox" name="remember">
-                        <span>Remember me</span>
-                    </label>
-                    <a href="/forgot-password">Forgot password?</a>
+                <div class="form-row">
+                    <label class="remember-me"><input type="checkbox" name="remember"> <span>Remember me</span></label>
+                    <a href="{{ url_for('main.forgot_password') }}" class="inline-link">Forgot password?</a>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100 login-submit">Sign in</button>
+                <button type="submit" class="enterprise-login-button">Sign in</button>
             </form>
 
-            <div class="login-footer-note">
-                Protected by enterprise monitoring and access controls.
-            </div>
+            <div class="form-footer">Protected by enterprise monitoring and access controls.</div>
         </div>
     </div>
 </div>

@@ -46,7 +46,8 @@
             </td>
             <td style="padding: 1rem; text-align: center;">
                 {% if policy.review_date %}
-                <span style="color: {% if policy.review_date < now %}#e74c3c{% else %}#27ae60{% endif %};">
+                {% set review_overdue = policy.review_date < now %}
+                <span style="color: {% if review_overdue %}#e74c3c{% else %}#27ae60{% endif %};">
                     {{ policy.review_date.strftime('%Y-%m-%d') }}
                 </span>
                 {% else %}

@@ -51,14 +51,14 @@
                 <span class="status-dot"></span>
                 <span>Operational</span>
                 {% if current_user.is_authenticated %}
-                <a href="{{ url_for('main.notifications_page') }}" class="notification-link">
-                    Notifications
                     {% set current_notifications = notifications if notifications is defined else [] %}
                     {% if current_notifications and current_notifications|length > 0 %}
-                        <span class="notification-badge">{{ current_notifications|length }}</span>
+                        <a href="{{ url_for('main.notifications_page') }}" class="notification-link">
+                            Notifications
+                            <span class="notification-badge">{{ current_notifications|length }}</span>
+                        </a>
                     {% endif %}
-                </a>
-                <a href="{{ url_for('main.logout') }}" class="logout-link">Logout</a>
+                    <a href="{{ url_for('main.logout') }}" class="logout-link">Logout</a>
                 {% endif %}
             </div>
         </header>
