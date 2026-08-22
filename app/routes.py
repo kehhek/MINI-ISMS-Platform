@@ -1052,6 +1052,28 @@ def security_awareness_list():
         campaigns = [assignment.campaign for assignment in assignments]
         all_groups = current_user.groups.order_by(UserGroup.name.asc()).all() if hasattr(current_user.groups, 'order_by') else list(current_user.groups)
 
+    seen_campaigns = set()
+    deduped_campaigns = []
+    for campaign in campaigns:
+        if campaign is None:
+            continue
+        key = (campaign.tenant_id, campaign.month_label)
+        if key in seen_campaigns:
+            continue
+        seen_campaigns.add(key)
+        deduped_campaigns.append(campaign)
+    campaigns = deduped_campaigns
+
+    seen = set()
+    deduped_assignments = []
+    for assignment in assignments:
+        key = (assignment.tenant_id, assignment.user_id, assignment.campaign_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped_assignments.append(assignment)
+    assignments = deduped_assignments
+
     watched_assignments = [a for a in assignments if a.status == 'Completed']
     pending_assignments = [a for a in assignments if a.status in {'Assigned', 'Pending'}]
     in_progress_assignments = [a for a in assignments if a.status == 'In Progress']
@@ -1076,6 +1098,7 @@ def security_awareness_list():
         pending_assignments=pending_assignments,
         in_progress_assignments=in_progress_assignments,
         group_status_breakdown=group_status_breakdown,
+        all_groups=all_groups,
     )
 
 
@@ -1120,21 +1143,44 @@ def generate_monthly_security_awareness():
     due_date = request.form.get('due_date')
     due_date_obj = datetime.strptime(due_date, '%Y-%m-%d') if due_date else datetime.utcnow() + timedelta(days=30)
 
-    campaign = SecurityAwarenessCampaign(
+    campaign = SecurityAwarenessCampaign.query.filter_by(
         tenant_id=current_user.tenant_id,
-        title=title,
         month_label=month_label,
-        video_title=video_title,
-        description=description,
-        video_url=video_url,
-        status='Scheduled',
-        due_date=due_date_obj,
-        created_by_user_id=current_user.id,
-    )
-    db.session.add(campaign)
-    db.session.commit()
+    ).first()
+
+    if campaign is None:
+        campaign = SecurityAwarenessCampaign(
+            tenant_id=current_user.tenant_id,
+            title=title,
+            month_label=month_label,
+            video_title=video_title,
+            description=description,
+            video_url=video_url,
+            status='Scheduled',
+            due_date=due_date_obj,
+            created_by_user_id=current_user.id,
+        )
+        db.session.add(campaign)
+        db.session.commit()
+    else:
+        campaign.title = title
+        campaign.video_title = video_title
+        campaign.description = description
+        campaign.video_url = video_url
+        campaign.status = 'Scheduled'
+        campaign.due_date = due_date_obj
+        campaign.created_by_user_id = current_user.id
+        db.session.commit()
 
     for user in User.query.filter_by(tenant_id=current_user.tenant_id, is_active=True).all():
+        existing_assignment = AwarenessAssignment.query.filter_by(
+            tenant_id=current_user.tenant_id,
+            campaign_id=campaign.id,
+            user_id=user.id,
+        ).first()
+        if existing_assignment:
+            continue
+
         assignment = AwarenessAssignment(
             tenant_id=current_user.tenant_id,
             campaign_id=campaign.id,
@@ -1184,6 +1230,19 @@ def mark_security_awareness_watched(assignment_id):
 def security_awareness_new():
     default_month = datetime.utcnow().strftime('%B %Y')
     return render_template('security_awareness_form.html', default_month=default_month)
+
+
+@main.route('/security-awareness/<int:campaign_id>/delete', methods=['POST'])
+@login_required
+@require_roles('admin', 'security_manager')
+def security_awareness_delete(campaign_id):
+    campaign = SecurityAwarenessCampaign.query.filter_by(id=campaign_id, tenant_id=current_user.tenant_id).first_or_404()
+    AwarenessAssignment.query.filter_by(campaign_id=campaign.id, tenant_id=current_user.tenant_id).delete()
+    db.session.delete(campaign)
+    db.session.commit()
+    log_audit_event(current_user, 'security_awareness_campaign', campaign.id, 'deleted', before_value=campaign.title, after_value=None)
+    flash('Security awareness campaign deleted successfully.')
+    return redirect(url_for('main.security_awareness_list'))
 
 
 # --- Controls ---

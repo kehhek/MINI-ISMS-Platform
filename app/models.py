@@ -255,6 +255,9 @@ class WorkInstruction(db.Model):
 
 class SecurityAwarenessCampaign(db.Model):
     __tablename__ = 'security_awareness_campaigns'
+    __table_args__ = (
+        db.UniqueConstraint('tenant_id', 'month_label', name='uq_awareness_campaign_tenant_month'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)
@@ -276,6 +279,9 @@ class SecurityAwarenessCampaign(db.Model):
 
 class AwarenessAssignment(db.Model):
     __tablename__ = 'awareness_assignments'
+    __table_args__ = (
+        db.UniqueConstraint('tenant_id', 'campaign_id', 'user_id', name='uq_awareness_assignment_user_campaign'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, default=1)

@@ -84,6 +84,126 @@ class AdminSetupFlowTest(unittest.TestCase):
         self.assertIn(b'Mini ISMS', response.data)
         self.assertIn(b'Sign in', response.data)
 
+    def test_security_awareness_campaign_generation_is_idempotent_per_month(self):
+        self.login_admin()
+
+        user = User(
+            tenant_id=1,
+            email='staff@example.com',
+            full_name='Staff User',
+            role_id=4,
+            is_active=True,
+        )
+        user.set_password('StrongPass456!')
+        db.session.add(user)
+        db.session.commit()
+
+        token = self.get_csrf_token()
+        payload = {
+            'title': 'Security Awareness - August 2026',
+            'month_label': 'August 2026',
+            'video_title': 'Monthly Awareness Briefing',
+            'description': 'Monthly briefing',
+            'csrf_token': token,
+        }
+
+        first_response = self.client.post('/security-awareness/generate', data=payload, follow_redirects=False)
+        second_response = self.client.post('/security-awareness/generate', data=payload, follow_redirects=False)
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        self.assertEqual(SecurityAwarenessCampaign.query.filter_by(month_label='August 2026').count(), 1)
+        self.assertEqual(AwarenessAssignment.query.filter_by(campaign_id=SecurityAwarenessCampaign.query.filter_by(month_label='August 2026').first().id, user_id=user.id).count(), 1)
+
+    def test_admin_can_delete_security_awareness_campaign(self):
+        self.login_admin()
+
+        campaign = SecurityAwarenessCampaign(
+            tenant_id=1,
+            title='Security Awareness - August 2026',
+            month_label='August 2026',
+            video_title='Monthly Briefing',
+            description='Monthly briefing',
+            video_url='https://example.com/video.mp4',
+            status='Scheduled',
+        )
+        db.session.add(campaign)
+        db.session.commit()
+
+        user = User(
+            tenant_id=1,
+            email='training-user@example.com',
+            full_name='Training User',
+            role_id=4,
+            is_active=True,
+        )
+        user.set_password('StrongPass456!')
+        db.session.add(user)
+        db.session.commit()
+
+        assignment = AwarenessAssignment(
+            tenant_id=1,
+            campaign_id=campaign.id,
+            user_id=user.id,
+            status='Assigned',
+        )
+        db.session.add(assignment)
+        db.session.commit()
+
+        token = self.get_csrf_token()
+        response = self.client.post(f'/security-awareness/{campaign.id}/delete', data={'csrf_token': token}, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(SecurityAwarenessCampaign.query.filter_by(id=campaign.id).first())
+        self.assertEqual(AwarenessAssignment.query.filter_by(campaign_id=campaign.id).count(), 0)
+
+    def test_admin_and_security_manager_can_see_group_members_on_awareness_page(self):
+        self.login_admin()
+
+        other_user = User(
+            tenant_id=1,
+            email='group-user@example.com',
+            full_name='Group User',
+            role_id=4,
+            is_active=True,
+        )
+        other_user.set_password('StrongPass456!')
+        db.session.add(other_user)
+
+        group = UserGroup(tenant_id=1, name='IT Team')
+        db.session.add(group)
+        db.session.commit()
+
+        group.users.append(other_user)
+        db.session.commit()
+
+        campaign = SecurityAwarenessCampaign(
+            tenant_id=1,
+            title='Security Awareness - August 2026',
+            month_label='August 2026',
+            video_title='Monthly Briefing',
+            description='Monthly briefing',
+            video_url='https://example.com/video.mp4',
+            status='Scheduled',
+        )
+        db.session.add(campaign)
+        db.session.commit()
+
+        assignment = AwarenessAssignment(
+            tenant_id=1,
+            campaign_id=campaign.id,
+            user_id=other_user.id,
+            status='Assigned',
+        )
+        db.session.add(assignment)
+        db.session.commit()
+
+        response = self.client.get('/security-awareness')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'User Groups', response.data)
+        self.assertIn(b'IT Team', response.data)
+        self.assertIn(b'Group User', response.data)
+
     def test_policy_work_instruction_and_evidence_pages_render_without_errors(self):
         self.login_admin()
 
